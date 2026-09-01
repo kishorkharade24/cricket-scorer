@@ -1,6 +1,8 @@
 /* store.js — the whole database. localStorage only, no network, ever. */
 
-import { uid, toast } from './util.js';
+import { uid, toast, ACCENTS } from './util.js';
+
+const ACCENT_KEYS = ACCENTS.map(a => a.key);
 
 const KEY = 'cricket-scorer.db.v1';
 const SCHEMA = 1;
@@ -136,8 +138,62 @@ export function updateTeam(id, patch) {
 export function deleteTeam(id) {
   const d = data();
   d.teams = d.teams.filter(t => t.id !== id);
-  d.players = d.players.filter(p => p.teamId !== id);
+  // A player may turn out for more than one side; only drop those left orphaned.
+  const stillUsed = new Set(d.teams.flatMap(t => t.players));
+  d.players = d.players.filter(p => stillUsed.has(p.id) || p.teamId !== id);
+  d.players = d.players.filter(p => stillUsed.has(p.id) || d.teams.some(t => t.id === p.teamId));
   save();
+}
+
+/**
+ * Reuse a team by name if it already exists, otherwise make one. Quick matches
+ * played week after week then build up real history instead of leaving a trail
+ * of near-identical "Team A" entries.
+ */
+export function findOrCreateTeam(name, accentHint) {
+  const wanted = name.trim();
+  const found = data().teams.find(t => t.name.toLowerCase() === wanted.toLowerCase());
+  if (found) return found;
+
+  // Pick the accent that is least used so new teams stay visually distinct.
+  const used = new Map();
+  data().teams.forEach(t => used.set(t.accent, (used.get(t.accent) || 0) + 1));
+  const accent = accentHint && !used.has(accentHint)
+    ? accentHint
+    : ACCENT_KEYS.reduce((best, k) => ((used.get(k) || 0) < (used.get(best) || 0) ? k : best), ACCENT_KEYS[0]);
+
+  return addTeam({ name: wanted, short: wanted, accent });
+}
+
+/** Same idea for players within one squad. */
+export function findOrCreatePlayer(teamId, name) {
+  const wanted = name.trim();
+  const squad = players(teamId);
+  const found = squad.find(p => p.name.toLowerCase() === wanted.toLowerCase());
+  if (found) return found;
+  return addPlayer(teamId, { name: wanted });
+}
+
+/**
+ * Attach a player to a team by name, matching across every squad.
+ *
+ * Turf regulars swap sides week to week. If each side kept its own copy of
+ * "Rohit", one person's career would be split across half a dozen records and
+ * every stat would be wrong. So we look the name up everywhere first and reuse
+ * that player, adding them to this squad as well.
+ */
+export function linkPlayer(teamId, name) {
+  const wanted = name.trim().toLowerCase();
+  const t = team(teamId);
+  if (!t) return null;
+
+  const existing = data().players.find(p => p.name.trim().toLowerCase() === wanted);
+  if (!existing) return addPlayer(teamId, { name: name.trim() });
+
+  if (!t.players.includes(existing.id)) t.players.push(existing.id);
+  existing.teamId = teamId;                 // "most recent side", for display only
+  save();
+  return existing;
 }
 
 export function players(teamId) {
@@ -171,9 +227,8 @@ export function updatePlayer(id, patch) {
 
 export function deletePlayer(id) {
   const d = data();
-  const p = player(id);
   d.players = d.players.filter(x => x.id !== id);
-  if (p) { const t = team(p.teamId); if (t) t.players = t.players.filter(x => x !== id); }
+  d.teams.forEach(t => { t.players = t.players.filter(x => x !== id); });
   save();
 }
 

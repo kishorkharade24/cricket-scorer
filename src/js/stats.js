@@ -38,6 +38,7 @@ export function aggregate(matches, filter = () => true) {
   for (const m of matches) {
     if (!filter(m)) continue;
     if (m.status === 'setup') continue;
+    if (m.isSuperOver) continue;      // a Super Over is a decider, not an innings
     const states = statesOf(m);
     const played = new Set();
 
@@ -128,7 +129,7 @@ export function pointsTable(tournament, allMatches) {
   (tournament.teamIds || []).forEach(tid => rows.set(tid, { ...blankRow(tid), group: groupOf(tid) }));
 
   const inTourney = allMatches.filter(m =>
-    m.tournamentId === tournament.id && (m.status === 'completed' || m.result));
+    m.tournamentId === tournament.id && !m.isSuperOver && (m.status === 'completed' || m.result));
 
   for (const m of inTourney) {
     if (tournament.tableStages && !tournament.tableStages.includes(m.stage)) continue;

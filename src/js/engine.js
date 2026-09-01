@@ -183,7 +183,10 @@ export function computeInnings(match, idx) {
 
   const checkClose = () => {
     if (st.closed) return;
-    const allOutAt = rules.lastManStands ? sideSize : sideSize - 1;
+    // A Super Over ends at two wickets down regardless of how many are named.
+    const allOutAt = rules.maxWickets != null
+      ? rules.maxWickets
+      : (rules.lastManStands ? sideSize : sideSize - 1);
     if (st.target != null && st.runs >= st.target) { st.closed = true; st.closeReason = 'target'; return; }
     if (st.wickets >= allOutAt) { st.closed = true; st.closeReason = 'allout'; return; }
     if (st.balls >= st.maxBalls) { st.closed = true; st.closeReason = 'overs'; return; }
@@ -391,7 +394,9 @@ export function computeInnings(match, idx) {
   st.crr = rate(st.runs, st.balls);
   st.ballsLeft = Math.max(0, st.maxBalls - st.balls);
   st.sideSize = sideSize;
-  st.wicketsLeft = (rules.lastManStands ? sideSize : sideSize - 1) - st.wickets;
+  st.wicketsLeft = (rules.maxWickets != null
+    ? rules.maxWickets
+    : (rules.lastManStands ? sideSize : sideSize - 1)) - st.wickets;
   st.extrasTotal = st.extras.wide + st.extras.noball + st.extras.bye + st.extras.legbye + st.extras.penalty;
 
   if (st.target != null) {
@@ -504,6 +509,36 @@ export function setTieBreak(match, winnerId, method = 'Super Over') {
   match.tieBreak = winnerId ? { winnerId, method } : null;
   match.updatedAt = Date.now();
   return match.tieBreak;
+}
+
+/**
+ * Build a Super Over off the back of a tied match.
+ *
+ * One over each, two wickets and you are out of batters, and the side that
+ * chased in the main match bats first. It is a real match under the hood, so
+ * it is scored ball by ball with everything the app already does — it simply
+ * does not count towards anyone's career figures or the league table.
+ */
+export function newSuperOver(parent, xi, { number = 1 } = {}) {
+  const chased = parent.innings[1]?.battingTeamId || parent.teams[1];
+  const other = parent.teams.find(t => t !== chased);
+
+  const m = newMatch({
+    teamA: chased, teamB: other,
+    overs: 1,
+    playersPerSide: 3,
+    maxOversPerBowler: 1,
+    xi,
+    toss: { winnerId: chased, decision: 'bat' },
+    venue: parent.venue,
+    tournamentId: parent.tournamentId,
+    stage: number > 1 ? `Super Over ${number}` : 'Super Over',
+    rules: { ...(parent.rules || {}), maxWickets: 2, lastManStands: false }
+  });
+  m.parentMatchId = parent.id;
+  m.isSuperOver = true;
+  m.superOverNumber = number;
+  return m;
 }
 
 /** The side that progresses: the winner, or the tie-break winner. */

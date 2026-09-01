@@ -216,5 +216,79 @@ t('the other side keeps its own, larger size', () => {
   assert.equal(st.wicketsLeft, 10);
 });
 
+console.log('\nI. Splitting a turf pool into two sides');
+const B = await import('../src/js/balance.js');
+t('names parse from a pasted list, numbering and duplicates removed', () => {
+  const n = B.parseNames('1. Rohit\n2) Virat\nRohit\n\n  Bumrah , Shami ');
+  assert.deepEqual(n, ['Rohit', 'Virat', 'Bumrah', 'Shami']);
+});
+t('an odd pool splits with at most one player between the sides', () => {
+  const ids = Array.from({ length: 13 }, (_, i) => 'p' + i);
+  const r = B.balance(ids, []);
+  assert.equal(r.teamA.length + r.teamB.length, 13);
+  assert.ok(Math.abs(r.teamA.length - r.teamB.length) <= 1);
+});
+t('nobody is put on both sides or dropped', () => {
+  const ids = Array.from({ length: 12 }, (_, i) => 'p' + i);
+  const r = B.balance(ids, []);
+  const all = [...r.teamA, ...r.teamB].sort();
+  assert.deepEqual(all, [...ids].sort());
+});
+t('players with no history are treated as average, so they spread out', () => {
+  const ids = Array.from({ length: 10 }, (_, i) => 'p' + i);
+  const r = B.balance(ids, []);
+  assert.equal(r.knownCount, 0);
+  assert.equal(r.gap, 0, 'with no data both sides should be rated the same');
+});
+t('shuffling again gives a different split of equally rated players', () => {
+  const ids = Array.from({ length: 10 }, (_, i) => 'p' + i);
+  const a = B.balance(ids, [], 1).teamA.join(',');
+  const b = B.balance(ids, [], 7).teamA.join(',');
+  assert.notEqual(a, b);
+});
+
+console.log('\nJ. Super Over');
+t('a Super Over is one over, three players, two wickets', () => {
+  const parent = mk({ overs: 2, pps: 4, batN: 4, bowlN: 4 });
+  E.push(parent, { t: 'end', reason: 'manual' }); E.autoAdvance(parent);
+  const so = E.newSuperOver(parent, { A: ['a1', 'a2', 'a3'], B: ['b1', 'b2', 'b3'] });
+  assert.equal(so.overs, 1);
+  assert.equal(so.rules.maxWickets, 2);
+  assert.equal(so.isSuperOver, true);
+  assert.equal(so.parentMatchId, parent.id);
+});
+t('the side that chased bats first in the Super Over', () => {
+  const parent = mk({ overs: 2, pps: 4, batN: 4, bowlN: 4 });
+  E.push(parent, { t: 'end', reason: 'manual' }); E.autoAdvance(parent);
+  const chased = parent.innings[1].battingTeamId;
+  const so = E.newSuperOver(parent, { A: ['a1', 'a2', 'a3'], B: ['b1', 'b2', 'b3'] });
+  assert.equal(so.innings[0].battingTeamId, chased);
+});
+t('two wickets ends the Super Over innings even with a batter spare', () => {
+  const parent = mk({ overs: 2, pps: 4, batN: 4, bowlN: 4 });
+  E.push(parent, { t: 'end', reason: 'manual' }); E.autoAdvance(parent);
+  const so = E.newSuperOver(parent, { A: ['a1','a2','a3'], B: ['b1','b2','b3'] });
+  const first = so.innings[0].battingTeamId;
+  const bat = first === 'A' ? ['a1','a2','a3'] : ['b1','b2','b3'];
+  const bowl = first === 'A' ? 'b1' : 'a1';
+  E.push(so, { t: 'bat', id: bat[0] }); E.push(so, { t: 'bat', id: bat[1] });
+  E.push(so, { t: 'bowl', id: bowl });
+  E.push(so, { t: 'ball', r: 0, w: { type: 'bowled' } }); E.autoAdvance(so);
+  E.push(so, { t: 'bat', id: bat[2] });
+  E.push(so, { t: 'ball', r: 0, w: { type: 'bowled' } }); E.autoAdvance(so);
+  const st = E.computeInnings(so, 0);
+  assert.equal(st.wickets, 2);
+  assert.equal(st.closed, true);
+  assert.equal(st.closeReason, 'allout');
+});
+t('a Super Over does not touch career figures', () => {
+  const parent = mk({ overs: 2, pps: 4, batN: 4, bowlN: 4 });
+  for (let i = 0; i < 6; i++) ball(parent, { r: 4 });
+  const before = stats.aggregate([parent]).get('a1').runs;
+  const so = E.newSuperOver(parent, { A: ['a1','a2','a3'], B: ['b1','b2','b3'] });
+  const after = stats.aggregate([parent, so]).get('a1').runs;
+  assert.equal(after, before);
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -148,6 +148,19 @@ service worker requires.
 
 ## What it does
 
+### Turf cricket
+- **Quick match** — type or paste the names of whoever turned up and start
+  scoring. No teams to create first. Teams and players are still saved, so
+  career figures build up, and reusing a team name next week carries on the
+  same record.
+- **Split the sides for me** — the app rates everyone on what they have
+  actually done and deals them out in a snake draft, then tells you how close
+  the two sides are. Players it has never seen are treated as average so they
+  spread out rather than stacking on one side.
+- **One player, one record** — a regular who turns out for either side keeps a
+  single career history instead of a copy per team.
+- **Uneven sides** are normal: each team is all out one short of its own size.
+
 ### Scoring
 - Big tap targets for **0 1 2 3 4 5 6** plus **OUT**, sized for one thumb.
 - Extras armed as toggles: **wide, no ball, bye, leg bye**, each combining with a
@@ -207,7 +220,7 @@ fifties, hundreds, ducks, 3- and 5-wicket hauls, catches, stumpings, run outs).
 | Nobody left to bowl | If quotas and the no-consecutive-overs rule between them rule everyone out, the app relaxes one rule rather than stalling, and says on screen which one it had to give up. |
 | Overthrows | 7 to 10 runs off a single ball can be recorded, on their own or on top of a wide or no ball. |
 | Uneven sides | Each team is all out one short of **its own** size. Nine against eleven is fine — the nine-a-side team is all out at eight. |
-| Tied matches | Stay a tie for league points, but you can record who went through on a Super Over so a knockout bracket carries on. |
+| Tied matches | Stay a tie for league points. To settle a knockout you can play a full **Super Over** — one over each, two wickets, scored ball by ball, with the side that chased batting first — or just record a bowl-out / boundary-count / coin-toss winner. A Super Over is linked to the match it decided and is left out of career figures and the points table. |
 
 Configurable per match: overs, players per side, overs per bowler, wide and
 no-ball penalty, free hit on/off, and "last man stands".

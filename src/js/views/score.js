@@ -319,7 +319,11 @@ async function ensurePrompts(m, ctx) {
   const st = E.computeInnings(m, m.innings.length - 1);
 
   if (m.status === 'completed') {
-    if (shownResultFor !== m.id) { shownResultFor = m.id; await resultSheet(m, ctx); }
+    if (shownResultFor !== m.id) {
+      shownResultFor = m.id;
+      if (m.isSuperOver) await superOverResult(m, ctx);
+      else await resultSheet(m, ctx);
+    }
     return;
   }
   shownResultFor = null;
@@ -533,6 +537,46 @@ async function inningsBreak(m, ctx) {
 
   busy = false;
   ctx.render();
+}
+
+/**
+ * A Super Over decides the match above it, so write the outcome back to the
+ * parent rather than leaving two half-finished records. If it is level again,
+ * offer another — which is what actually happens.
+ */
+async function superOverResult(m, ctx) {
+  busy = true;
+  const parent = store.match(m.parentMatchId);
+  const states = m.innings.map((_, i) => E.computeInnings(m, i));
+  const winner = m.result?.winnerId || null;
+  const line = states.map(s => `${teamName(s.battingTeamId)} ${s.runs}/${s.wickets}`).join('  ·  ');
+
+  if (winner && parent) {
+    E.setTieBreak(parent, winner, m.superOverNumber > 1 ? `Super Over ${m.superOverNumber}` : 'Super Over');
+    parent.tieBreak.matchId = m.id;
+    store.save(true);
+  }
+
+  const v = await sheet(`
+    <div class="text-center">
+      <p class="text-4xl animate-pop">${winner ? '🏏' : '🤝'}</p>
+      <h3 class="mt-2 text-xl font-extrabold text-white leading-snug">
+        ${winner ? `${esc(teamName(winner))} won the Super Over` : 'The Super Over is tied too'}</h3>
+      <p class="mt-1 text-xs text-slate-500 num">${esc(line)}</p>
+    </div>
+    ${winner && parent ? `<p class="mt-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-3 py-2.5 text-[11px] text-emerald-200 leading-snug">
+        Recorded against ${esc(teamName(parent.teams[0]))} v ${esc(teamName(parent.teams[1]))}.
+        The match itself stays a tie, so league points are unaffected — but a knockout bracket now moves on.</p>`
+      : `<p class="mt-4 rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-2.5 text-[11px] text-amber-200 leading-snug">
+        Still nothing between them. Play another Super Over, or go back and record the winner another way.</p>`}
+    <div class="grid ${winner ? 'grid-cols-1' : 'grid-cols-2'} gap-3 mt-5">
+      ${winner ? '' : '<button class="btn-ghost" data-close="another">Another Super Over</button>'}
+      <button class="btn-primary" data-close="parent">Back to the match</button>
+    </div>`, { grab: false });
+
+  busy = false;
+  if (v === 'another' && parent) { ctx.go('/scorecard/' + parent.id); return; }
+  ctx.go('/scorecard/' + (parent ? parent.id : m.id));
 }
 
 async function resultSheet(m, ctx) {

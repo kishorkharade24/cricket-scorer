@@ -1,8 +1,8 @@
 /* Full scorecard for one match. */
 
-import { esc, fixed, oversOf, shortName, copyText, toast, fmtDate, sheet, closeSheet } from '../util.js';
+import { esc, fixed, oversOf, shortName, copyText, toast, fmtDate, sheet, closeSheet, initials } from '../util.js';
 import * as store from '../store.js';
-import { badge, empty, teamName, nameOf, tabs, ballChip, ICON, iconBtn } from '../ui.js';
+import { badge, empty, teamName, teamShort, nameOf, tabs, ballChip, ICON, iconBtn } from '../ui.js';
 import * as E from '../engine.js';
 import { statesOf } from '../stats.js';
 
@@ -65,32 +65,133 @@ export default {
 
 /* ------------------------------------------------------------------ */
 
-/** A tie has to send someone through in a knockout — offer that here too, not
- *  only on the one-off result screen that appears when the match ends. */
+/** What a tie looks like on the card, and the way out of it. */
 function tieBreakCard(m) {
   if (!m.result?.tie) return '';
-  const done = m.tieBreak?.winnerId;
-  return `<button data-act="tiebreak" class="w-full card-h p-4 mt-4 flex items-center gap-3 text-left">
-    <span class="h-10 w-10 shrink-0 rounded-xl bg-amber-500/15 border border-amber-500/25 grid place-items-center text-lg">🤝</span>
-    <span class="flex-1 min-w-0">
-      <span class="block text-sm font-bold text-white">${done ? 'Tie settled' : 'Scores level — who went through?'}</span>
-      <span class="block text-[11px] text-slate-500">${done
-        ? `${esc(teamName(m.tieBreak.winnerId))} won the ${esc(m.tieBreak.method)} · tap to change`
-        : 'Record a Super Over or bowl-out winner so a knockout bracket can carry on'}</span></span>
-    <span class="text-slate-600">›</span></button>`;
+  const so = store.matches().filter(x => x.parentMatchId === m.id).sort((a, b) => a.superOverNumber - b.superOverNumber);
+  const decided = m.tieBreak?.winnerId;
+
+  const soRows = so.map(x => {
+    const sts = statesOf(x);
+    const line = sts.map(st => `${teamShort(st.battingTeamId)} ${st.runs}/${st.wickets}`).join('  ·  ');
+    const done = x.status === 'completed';
+    return `<a href="#/${done ? 'scorecard' : 'score'}/${x.id}"
+      class="flex items-center gap-2.5 rounded-lg bg-white/[.05] px-3 py-2 mt-2 hover:bg-white/10 transition">
+      <span class="text-[10px] font-bold uppercase tracking-wider ${done ? 'text-slate-500' : 'text-rose-300'}">${esc(x.stage)}</span>
+      <span class="flex-1 num text-[12px] font-semibold text-white truncate">${esc(line || 'not started')}</span>
+      <span class="text-slate-600">${done ? '›' : 'resume ›'}</span></a>`;
+  }).join('');
+
+  return `<div class="card p-4 mt-4">
+    <div class="flex items-center gap-3">
+      <span class="h-10 w-10 shrink-0 rounded-xl bg-amber-500/15 border border-amber-500/25 grid place-items-center text-lg">🤝</span>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-bold text-white">${decided ? 'Tie settled' : 'Scores level — what next?'}</p>
+        <p class="text-[11px] text-slate-500">${decided
+          ? `${esc(teamName(m.tieBreak.winnerId))} went through on the ${esc(m.tieBreak.method)}`
+          : 'A tie is a tie for league points. A knockout still needs someone to go through.'}</p>
+      </div>
+    </div>
+    ${soRows}
+    <button data-act="tiebreak" class="btn-ghost w-full mt-3 text-xs">${decided ? 'Change how it was settled' : 'Decide it'}</button>
+  </div>`;
 }
 
 async function tieBreakSheet(m, ctx) {
   if (!m) return;
-  const METHODS = ['Super Over', 'Bowl-out', 'Boundary count', 'Coin toss'];
+  const opt = (act, icon, title, sub) => `
+    <button data-tbopt="${act}" class="w-full flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3.5 py-3 text-left hover:bg-white/10 active:scale-[.99] transition">
+      <span class="text-lg w-6 text-center">${icon}</span>
+      <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-white">${esc(title)}</span>
+      <span class="block text-[11px] text-slate-500 leading-snug">${esc(sub)}</span></span>
+      <span class="text-slate-600">›</span></button>`;
+
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white">How was the tie settled?</h3>
-    <p class="text-xs text-slate-500 mt-1">League points are not affected — a tie stays a tie. This only
-      decides who goes through in a knockout.</p>
-    <p class="label mt-5">Method</p>
+    <h3 class="text-lg font-bold text-white">The scores are level</h3>
+    <p class="text-xs text-slate-500 mt-1 leading-relaxed">In a league this stays a tie and both sides take a point.
+      In a knockout somebody has to go through — pick how it was settled.</p>
+    <div class="grid gap-2 mt-5">
+      ${opt('super', '🏏', 'Play a Super Over', 'One over each, two wickets, scored ball by ball')}
+      ${opt('record', '✍️', 'Just record the winner', 'Bowl-out, boundary count or a coin toss')}
+      ${m.tieBreak?.winnerId ? opt('clear', '↩️', 'Leave it as a tie', 'Removes whatever was recorded') : ''}
+    </div>
+    <button class="btn-ghost w-full mt-4" data-close="__dismiss">Cancel</button>`, { grab: false });
+
+  if (!v || !v.startsWith('tbopt:')) return;
+  const choice = v.slice(6);
+
+  if (choice === 'clear') {
+    E.setTieBreak(m, null); store.save(true); toast('Left as a tie', 'ok'); ctx.render(); return;
+  }
+  if (choice === 'super') return startSuperOver(m, ctx);
+  return recordWinnerSheet(m, ctx);
+}
+
+/** Pick three a side, then score it like any other match. */
+async function startSuperOver(m, ctx) {
+  const states = statesOf(m);
+  // Default to the three who scored most in the match — the usual choice.
+  const topThree = teamId => {
+    const st = states.find(x => x.battingTeamId === teamId);
+    const xi = m.xi[teamId] || [];
+    const ranked = [...xi].sort((a, b) => ((st?.bat[b]?.r) || 0) - ((st?.bat[a]?.r) || 0));
+    return ranked.slice(0, 3);
+  };
+  const picked = { [m.teams[0]]: topThree(m.teams[0]), [m.teams[1]]: topThree(m.teams[1]) };
+  window.__soPick = picked;
+
+  const pane = teamId => `
+    <div class="mt-4">
+      <div class="flex items-center gap-2 mb-2">
+        ${badge(teamId, 'sm')}
+        <p class="flex-1 text-sm font-bold text-white truncate">${esc(teamName(teamId))}</p>
+        <span class="num text-[11px] font-bold text-emerald-400" data-socount="${teamId}">${picked[teamId].length}/3</span>
+      </div>
+      <div class="grid gap-1.5 max-h-40 overflow-y-auto no-scrollbar">
+        ${(m.xi[teamId] || []).map(id => {
+          const on = picked[teamId].includes(id);
+          return `<button data-sopick="${teamId}:${id}" class="flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition ${
+            on ? 'bg-emerald-500/12 border-emerald-500/35' : 'bg-white/[.03] border-white/8'}">
+            <span class="h-6 w-6 shrink-0 grid place-items-center rounded-full bg-white/8 text-[9px] font-bold text-slate-300">${esc(initials(nameOf(id)))}</span>
+            <span class="flex-1 min-w-0 text-xs font-semibold truncate ${on ? 'text-white' : 'text-slate-400'}">${esc(nameOf(id))}</span>
+            ${on ? '<span class="text-emerald-400 text-xs">✓</span>' : ''}</button>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+  const chased = m.innings[1]?.battingTeamId || m.teams[1];
+  const v = await sheet(`
+    <h3 class="text-lg font-bold text-white">Super Over</h3>
+    <p class="text-xs text-slate-500 mt-1 leading-relaxed">One over each and two wickets ends an innings.
+      <b class="text-slate-300">${esc(teamName(chased))}</b> bat first, having chased.
+      Three batters a side — the bowler is chosen when you start.</p>
+    ${pane(m.teams[0])}
+    ${pane(m.teams[1])}
+    <div class="mt-5 grid grid-cols-2 gap-3">
+      <button class="btn-ghost" data-close="__dismiss">Cancel</button>
+      <button class="btn-primary" data-close="go">Start Super Over</button>
+    </div>`, { grab: false });
+
+  if (v !== 'go') return;
+  const sel = window.__soPick;
+  if (m.teams.some(t => (sel[t] || []).length < 2)) { toast('Pick at least two players a side', 'warn'); return; }
+
+  const previous = store.matches().filter(x => x.parentMatchId === m.id).length;
+  const so = E.newSuperOver(m, { [m.teams[0]]: sel[m.teams[0]], [m.teams[1]]: sel[m.teams[1]] },
+                            { number: previous + 1 });
+  store.addMatch(so);
+  ctx.go('/score/' + so.id);
+}
+
+/** The short path: no ball-by-ball, just who went through and how. */
+async function recordWinnerSheet(m, ctx) {
+  const METHODS = ['Bowl-out', 'Boundary count', 'Coin toss', 'Super Over'];
+  const v = await sheet(`
+    <h3 class="text-lg font-bold text-white">Who went through?</h3>
+    <p class="label mt-5">Settled by</p>
     <div class="grid grid-cols-2 gap-2" id="tbMethod">
       ${METHODS.map((x, i) => `<button type="button" data-tbm="${esc(x)}"
-        class="rounded-xl border px-3 py-2.5 text-xs font-bold transition ${(m.tieBreak?.method || 'Super Over') === x
+        class="rounded-xl border px-3 py-2.5 text-xs font-bold transition ${(m.tieBreak?.method || METHODS[0]) === x
           ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-white/5 border-white/10 text-slate-400'}">${esc(x)}</button>`).join('')}
     </div>
     <p class="label mt-5">Winner</p>
@@ -101,15 +202,10 @@ async function tieBreakSheet(m, ctx) {
         <span class="flex-1 text-sm font-semibold text-white truncate">${esc(teamName(tid))}</span>
         ${m.tieBreak?.winnerId === tid ? '<span class="text-amber-300">✓</span>' : ''}</button>`).join('')}
     </div>
-    <div class="mt-5 grid ${m.tieBreak?.winnerId ? 'grid-cols-2' : 'grid-cols-1'} gap-3">
-      <button class="btn-ghost" data-close="__dismiss">Cancel</button>
-      ${m.tieBreak?.winnerId ? '<button class="btn-danger" data-close="clear">Clear</button>' : ''}
-    </div>`, { grab: false });
+    <button class="btn-ghost w-full mt-5" data-close="__dismiss">Cancel</button>`, { grab: false });
 
-  if (v === 'clear') { E.setTieBreak(m, null); store.save(true); toast('Tie-break cleared', 'ok'); ctx.render(); return; }
   if (!v || !v.startsWith('tbwin:')) return;
-  const method = window.__tbMethod || m.tieBreak?.method || 'Super Over';
-  E.setTieBreak(m, v.slice(6), method);
+  E.setTieBreak(m, v.slice(6), window.__tbMethod || m.tieBreak?.method || 'Bowl-out');
   store.save(true);
   toast(`${teamName(m.tieBreak.winnerId)} went through`, 'ok');
   ctx.render();
@@ -122,6 +218,30 @@ document.addEventListener('click', e => {
       b.className = b.className.replace('bg-emerald-500/15 border-emerald-500/40 text-emerald-300', 'bg-white/5 border-white/10 text-slate-400'));
     meth.className = meth.className.replace('bg-white/5 border-white/10 text-slate-400', 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300');
     window.__tbMethod = meth.dataset.tbm;
+    return;
+  }
+  const opt = e.target.closest('[data-tbopt]');
+  if (opt) { closeSheet('tbopt:' + opt.dataset.tbopt); return; }
+
+  const pick = e.target.closest('[data-sopick]');
+  if (pick) {
+    const [tid, pid] = pick.dataset.sopick.split(':');
+    const sel = window.__soPick;
+    if (!sel) return;
+    const list = sel[tid] || (sel[tid] = []);
+    const i = list.indexOf(pid);
+    if (i >= 0) list.splice(i, 1);
+    else if (list.length >= 3) { toast('Three a side in a Super Over', 'warn'); return; }
+    else list.push(pid);
+    // repaint just this row and the counter
+    const on = list.includes(pid);
+    pick.className = pick.className
+      .replace('bg-emerald-500/12 border-emerald-500/35', 'bg-white/[.03] border-white/8')
+      .replace('bg-white/[.03] border-white/8', on ? 'bg-emerald-500/12 border-emerald-500/35' : 'bg-white/[.03] border-white/8');
+    const label = pick.querySelector('span:nth-child(2)');
+    if (label) label.classList.toggle('text-white', on);
+    const counter = document.querySelector(`[data-socount="${tid}"]`);
+    if (counter) counter.textContent = `${list.length}/3`;
     return;
   }
   const win = e.target.closest('[data-tbwin]');

@@ -49,9 +49,12 @@ export default {
 
     const teams = sortBy(store.teams(), 'name');
     if (teams.length < 2) {
-      return empty('👥', 'You need two teams first',
-        'Create at least two teams with a few players each, then come back to set up the match.',
-        `<a href="#/teams" class="btn-primary">Go to teams</a>`);
+      return empty('👥', 'This route needs saved teams',
+        'Set up two teams with squads, or skip all of it and start a quick match by typing names.',
+        `<div class="flex flex-col gap-2 items-stretch">
+           <a href="#/match/quick" class="btn-primary">⚡ Quick match instead</a>
+           <a href="#/teams" class="btn-ghost">Set up teams</a>
+         </div>`);
     }
 
     return `

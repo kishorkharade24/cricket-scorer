@@ -131,14 +131,14 @@ console.log('\nEvery screen renders');
 const VIEWS = {
   home: '../src/js/views/home.js', matches: '../src/js/views/matches.js',
   teams: '../src/js/views/teams.js', 'team-detail': '../src/js/views/team-detail.js',
-  setup: '../src/js/views/setup.js', score: '../src/js/views/score.js',
+  setup: '../src/js/views/setup.js', quick: '../src/js/views/quick.js', score: '../src/js/views/score.js',
   scorecard: '../src/js/views/scorecard.js', tournaments: '../src/js/views/tournaments.js',
   'tournament-detail': '../src/js/views/tournament-detail.js',
   stats: '../src/js/views/stats.js', settings: '../src/js/views/settings.js'
 };
 const CTX = {
   home: {}, matches: {}, teams: {}, 'team-detail': { id: teamIds[0] },
-  setup: { query: {} }, score: { id: m1.id }, scorecard: { id: m1.id },
+  setup: { query: {} }, quick: {}, score: { id: m1.id }, scorecard: { id: m1.id },
   tournaments: {}, 'tournament-detail': { id: tour.id }, stats: {}, settings: {}
 };
 for (const [name, path] of Object.entries(VIEWS)) {

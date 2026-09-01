@@ -10,6 +10,7 @@ import home        from './views/home.js';
 import teams       from './views/teams.js';
 import teamDetail  from './views/team-detail.js';
 import setup       from './views/setup.js';
+import quick       from './views/quick.js';
 import score       from './views/score.js';
 import scorecard   from './views/scorecard.js';
 import matches     from './views/matches.js';
@@ -24,6 +25,7 @@ const ROUTES = [
   ['teams',         teams],
   ['team/:id',      teamDetail],
   ['match/new',     setup],
+  ['match/quick',   quick],
   ['score/:id',     score],
   ['scorecard/:id', scorecard],
   ['tournaments',   tournaments],

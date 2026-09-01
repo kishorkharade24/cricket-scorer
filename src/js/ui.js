@@ -96,7 +96,8 @@ export function matchCard(m, { showTournament = true } = {}) {
   return `<a href="#/${live ? 'score' : 'scorecard'}/${m.id}" class="card-h block p-4 animate-slide-up">
     <div class="flex items-center justify-between gap-2 mb-3">
       <div class="flex items-center gap-2 min-w-0">
-        ${live ? livePill() : pill(m.status === 'completed' ? 'Result' : 'Setup', 'bg-white/8 text-slate-400')}
+        ${live ? livePill() : pill(m.isSuperOver ? (m.stage || 'Super Over') : (m.status === 'completed' ? 'Result' : 'Setup'),
+            m.isSuperOver ? 'bg-amber-500/15 text-amber-300' : 'bg-white/8 text-slate-400')}
         ${showTournament && t ? `<span class="text-[11px] text-slate-500 truncate">${esc(t.name)}${m.stage ? ' · ' + esc(m.stage) : ''}</span>` : ''}
       </div>
       <span class="text-[11px] text-slate-600 shrink-0">${esc(relTime(m.updatedAt || m.createdAt))}</span>

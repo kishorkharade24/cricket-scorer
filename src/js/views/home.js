@@ -28,10 +28,10 @@ export default {
 
       ${section('Quick start')}
       <div class="grid grid-cols-2 gap-3">
-        ${tile('#/match/new', '🏏', 'New match', 'Toss, XI, then score', 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/25')}
+        ${tile('#/match/quick', '⚡', 'Quick match', 'Type names, start scoring', 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/25')}
         ${tile('#/tournaments', '🏆', 'Tournament', 'Fixtures & points table', 'from-amber-500/20 to-amber-500/5 border-amber-500/25')}
-        ${tile('#/teams', '👥', 'Teams', `${d.teams.length} saved`, 'from-sky-500/20 to-sky-500/5 border-sky-500/25')}
-        ${tile('#/stats', '📊', 'Player stats', `${d.players.length} players`, 'from-violet-500/20 to-violet-500/5 border-violet-500/25')}
+        ${tile('#/match/new', '🏏', 'Full setup', 'Saved teams, toss, XI', 'from-sky-500/20 to-sky-500/5 border-sky-500/25')}
+        ${tile('#/teams', '👥', 'Teams', `${d.teams.length} saved · ${d.players.length} players`, 'from-violet-500/20 to-violet-500/5 border-violet-500/25')}
       </div>
 
       ${tours.length ? `${section('Tournaments', `<a href="#/tournaments" class="text-[11px] font-bold text-emerald-400">See all</a>`)}
@@ -74,8 +74,8 @@ function welcome() {
         Ball-by-ball scoring with extras, wickets, free hits and undo — plus proper scorecards,
         tournament points tables and career stats. Nothing is uploaded anywhere.</p>
       <div class="mt-4 flex flex-wrap gap-2">
-        <a href="#/teams" class="btn-primary">Create your first team</a>
-        <a href="#/match/new" class="btn-ghost">Skip to a match</a>
+        <a href="#/teams" class="btn-ghost">Set up saved teams</a>
+        <a href="#/match/quick" class="btn-primary">Quick match — just names</a>
       </div>
     </div></div>`;
 }
