@@ -3,7 +3,6 @@
 import { $, $$, toast, closeSheet, sheetOpen } from './util.js';
 import * as store from './store.js';
 import { registerSW } from './pwa.js';
-import { CREDIT } from './ui.js';
 import * as theme from './theme.js';
 
 import home        from './views/home.js';
@@ -87,7 +86,7 @@ export function render() {
         <p class="mt-1 text-xs text-slate-500">${err.message}</p>
         <a href="#/" class="btn-ghost mt-4">Back to home</a></div>`;
   }
-  root.innerHTML = html + CREDIT;
+  root.innerHTML = html;
   const scroller = $('#scroller');
   if (scroller) scroller.scrollTop = 0;
   root.scrollTop = 0;

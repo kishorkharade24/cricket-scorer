@@ -183,11 +183,16 @@ service worker requires.
   declare an innings closed, or abandon the match.
 
 ### The shell
-Header, a scrolling middle, then the navigation bar — laid out as a flex column
-rather than positioned. Nothing is `position: fixed`, because on iOS a fixed
-element tracks a viewport that moves as the address bar hides, which is how a
-bottom bar ends up floating in the middle of a page. The bars carry their own
-surface tone so content clearly passes behind them.
+Header, a scrolling middle, then the navigation bar — one flex column pinned
+with `inset: 0`. The bars are placed by layout rather than by
+`position: fixed`, because on iOS a fixed element tracks a viewport that moves
+as the address bar hides, which is how a bottom bar ends up floating in the
+middle of a page. The shell is sized by `inset` rather than `vh`/`dvh` for the
+same reason: in a home-screen app those units do not always agree with the
+height iOS actually hands the web view, and the difference shows as a strip of
+empty page under the bar. The bars carry their own surface tone so content
+clearly passes behind them, and the credit line sits under the menu once
+rather than at the foot of every screen.
 
 ### Reading results
 The results list is deliberately plain: two teams, two scores, who won. The

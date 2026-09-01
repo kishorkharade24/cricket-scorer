@@ -57,16 +57,23 @@
     --c-chrome-edge-alpha: .12;
   }
   html { -webkit-text-size-adjust: 100%; }
-  /* One screen, three rows: bar, scrolling content, bar. The bars are laid out
-     rather than positioned, which is the only way to be certain they stay put
-     on iOS, where a fixed element tracks a viewport that moves as the address
-     bar hides. */
+  /* One screen, three rows: bar, scrolling content, bar.
+     Sized with inset:0 rather than a viewport unit. In a home-screen app, dvh
+     and vh do not always agree with the height iOS actually gives the web view,
+     and the difference shows up as a strip of empty page under the bar.
+     inset:0 has no unit to disagree about — it is the viewport, exactly. */
   .app-shell {
+    position: fixed;
+    inset: 0;
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    height: 100dvh;
     overflow: hidden;
+  }
+
+  /* The shell is taken out of flow, so html paints anything behind it. */
+  html {
+    height: 100%;
+    background-color: rgb(var(--c-bg-950));
   }
 
   body {

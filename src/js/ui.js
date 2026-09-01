@@ -5,18 +5,6 @@ import * as store from './store.js';
 import { statesOf } from './stats.js';
 import { computeResult, resultText } from './engine.js';
 
-/** Shown at the foot of every screen. Defined once, injected by the router. */
-export const CREDIT = `
-  <footer class="mt-10 mb-1 flex flex-col items-center gap-1 select-none" aria-label="Credits">
-    <div class="h-px w-16 bg-gradient-to-r from-transparent via-white/12 to-transparent"></div>
-    <p class="text-[10px] tracking-wide text-slate-600">
-      <span class="font-semibold text-slate-500">Cricket&nbsp;Scorer</span>
-      <span class="mx-1 opacity-50">·</span>
-      designed &amp; developed by
-      <span class="font-semibold text-slate-400">Kishor&nbsp;Kharade</span>
-    </p>
-  </footer>`;
-
 export const teamName  = id => store.team(id)?.name || 'TBD';
 export const teamShort = id => store.team(id)?.short || '—';
 export const nameOf    = id => store.player(id)?.name || 'Player';
