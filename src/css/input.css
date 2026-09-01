@@ -75,6 +75,8 @@
      visible below the navigation, it should read as part of the bar. */
   html {
     height: 100%;
+    /* Exactly the bars' colour, so any strip a device paints outside the web
+       view is indistinguishable from the bar above it. */
     background-color: rgb(var(--c-chrome));
   }
 
@@ -131,11 +133,11 @@
   /* The top and bottom bars are chrome, not page. They need to read as a
      surface content passes *behind* — at the page colour they look like they
      have come unstuck when a card scrolls under them. */
-  .chrome {
-    background-color: rgb(var(--c-chrome) / .93);
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-  }
+  /* Opaque, not translucent. In the flex shell the content scrolls in its own
+     pane, so nothing ever passes behind these bars — the blur bought nothing
+     and the 93% let the page tint them, which meant they no longer matched the
+     colour painted behind the shell. Solid, and the two match exactly. */
+  .chrome { background-color: rgb(var(--c-chrome)); }
   .chrome-top {
     border-bottom: 1px solid rgb(var(--c-chrome-edge) / var(--c-chrome-edge-alpha));
     box-shadow: 0 6px 20px -12px rgba(0, 0, 0, .65);

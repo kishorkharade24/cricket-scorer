@@ -244,6 +244,10 @@ async function displaySheet() {
     ${row('Gap under the bar', gap == null ? '—' : `${gap} px`, !!gap)}
     ${row('Safe area', `${safe.top} / ${safe.right} / ${safe.bottom} / ${safe.left}`)}
     ${row('Installed to home screen', standalone ? 'yes' : 'no')}
+    ${row('Web view vs screen', `${window.innerHeight} of ${window.screen?.height}`,
+          !!window.screen?.height && window.innerHeight < window.screen.height - 1)}
+    <p class="mt-3 text-[11px] text-slate-500 leading-snug">If the web view is shorter than the screen, iOS is
+      painting the difference itself. The app cannot draw there, so that strip is coloured to match the bars.</p>
     <div class="mt-5 grid grid-cols-2 gap-3">
       <button class="btn-ghost" data-close="__dismiss">Close</button>
       <button class="btn-primary" data-close="copy">Copy</button>

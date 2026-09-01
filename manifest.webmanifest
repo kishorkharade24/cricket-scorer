@@ -10,8 +10,8 @@
     "minimal-ui"
   ],
   "orientation": "portrait",
-  "background_color": "#05080f",
-  "theme_color": "#05080f",
+  "background_color": "#111928",
+  "theme_color": "#111928",
   "categories": [
     "sports",
     "utilities",

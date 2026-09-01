@@ -13,7 +13,10 @@ export const THEMES = [
   { key: 'system', label: 'System', icon: '🖥️', hint: 'Follows your phone’s setting' }
 ];
 
-const BAR = { dark: '#05080f', light: '#f1f5f9' };
+/* iOS paints the area around an installed app's web view in this colour. The
+   bars are what meet the screen edges, so it has to match them — using the page
+   colour is what made a strip appear under the navigation. */
+const BAR = { dark: '#111928', light: '#ffffff' };
 
 export function prefersLight() {
   return typeof window !== 'undefined' &&
