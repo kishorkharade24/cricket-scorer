@@ -209,5 +209,6 @@ export function fullText(m) {
   const res = E.resultText(m, states, teamName);
   if (res) L.push(res);
   if (m.motm) L.push(`Player of the match: ${nameOf(m.motm)}`);
+  L.push('', 'Scored with Cricket Scorer — by Kishor Kharade');
   return L.join('\n');
 }

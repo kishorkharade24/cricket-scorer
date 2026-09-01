@@ -73,7 +73,10 @@ export default {
         <button data-act="reset" class="btn-danger w-full">Delete everything on this device</button>
       </div>
 
-      <p class="mt-8 text-center text-[11px] text-slate-600">Cricket Scorer · v1.0.0 · offline PWA</p>
+      <div class="mt-8 text-center">
+        <p class="text-[11px] text-slate-500 font-semibold">Version 1.0.0</p>
+        <p class="mt-0.5 text-[10px] text-slate-700">Offline PWA · no server, no accounts</p>
+      </div>
       <input id="fileIn" type="file" accept="application/json,.json" class="hidden">`;
   },
 

@@ -636,6 +636,7 @@ export function scoreSummaryText(m) {
   if (m.status === 'live' && st.striker) {
     lines.push(`${shortName(nameOf(st.striker))} ${st.bat[st.striker].r}* (${st.bat[st.striker].b})`);
   }
+  lines.push('', 'Scored with Cricket Scorer — by Kishor Kharade');
   return lines.join('\n');
 }
 
