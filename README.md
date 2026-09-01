@@ -160,6 +160,9 @@ service worker requires.
 - **One player, one record** — a regular who turns out for either side keeps a
   single career history instead of a copy per team.
 - **Uneven sides** are normal: each team is all out one short of its own size.
+- **Turf rule pack** — no LBW (there is no umpire), retire on 25/30/50 so
+  everyone gets a bat, a short side may send one player back in for a second
+  knock, and a nudge when players still need to bowl their over.
 
 ### Scoring
 - Big tap targets for **0 1 2 3 4 5 6** plus **OUT**, sized for one thumb.
@@ -220,6 +223,10 @@ fifties, hundreds, ducks, 3- and 5-wicket hauls, catches, stumpings, run outs).
 | Nobody left to bowl | If quotas and the no-consecutive-overs rule between them rule everyone out, the app relaxes one rule rather than stalling, and says on screen which one it had to give up. |
 | Overthrows | 7 to 10 runs off a single ball can be recorded, on their own or on top of a wide or no ball. |
 | Uneven sides | Each team is all out one short of **its own** size. Nine against eleven is fine — the nine-a-side team is all out at eight. |
+| No LBW | Turf has no umpire, so LBW can be dropped from the list of ways out. |
+| Retire on N | You are asked once, on the ball that takes a batter past the mark. They keep their runs and can come back if the side runs short. |
+| Second knock | A short side can name one player to bat twice. Both knocks add into the same record, and the side is all out one wicket later. |
+| Everyone bowls | Optional. The bowler list puts those still waiting first and warns when there are fewer overs left than players still to bowl. |
 | Tied matches | Stay a tie for league points. To settle a knockout you can play a full **Super Over** — one over each, two wickets, scored ball by ball, with the side that chased batting first — or just record a bowl-out / boundary-count / coin-toss winner. A Super Over is linked to the match it decided and is left out of career figures and the points table. |
 
 Configurable per match: overs, players per side, overs per bowler, wide and

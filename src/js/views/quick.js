@@ -23,6 +23,8 @@ function fresh() {
     overs: Math.min(s.defaultOvers, 10),
     batsFirst: 'A',
     shuffle: 0,
+    noLbw: true,            // turf default — there is no umpire
+    retireAt: 0,
     split: null                    // the result of the last balance
   };
 }
@@ -52,6 +54,21 @@ export default {
           ${PRESETS.map(o => `<button data-overs="${o}" class="btn-chip ${d.overs === o ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${o}</button>`).join('')}
           <input id="qOvers" type="number" min="1" max="50" value="${d.overs}" class="w-16 rounded-full bg-white/5 border border-white/10 px-3 py-1.5 text-xs text-center num" aria-label="Overs">
         </div>
+      </div>
+
+      <div class="card p-4 mt-4">
+        <p class="label">Turf rules</p>
+        <button data-act="nolbw" class="w-full flex items-center gap-3 rounded-xl bg-white/[.04] border border-white/10 px-3 py-2.5 text-left transition active:scale-[.99]">
+          <span class="flex-1"><span class="block text-sm font-semibold text-white">No LBW</span>
+          <span class="block text-[11px] text-slate-500">There is no umpire</span></span>
+          <span class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${d.noLbw ? 'bg-emerald-500' : 'bg-white/15'}">
+            <span class="block h-5 w-5 rounded-full bg-pure shadow transition-transform ${d.noLbw ? 'translate-x-4' : ''}"></span></span>
+        </button>
+        <p class="label mt-4">Retire on</p>
+        <div class="flex flex-wrap gap-2">
+          ${[0, 25, 30, 50].map(n => `<button data-retire="${n}" class="btn-chip ${d.retireAt === n ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${n === 0 ? 'Off' : n}</button>`).join('')}
+        </div>
+        <p class="mt-2 text-[11px] text-slate-500">${d.retireAt ? `Everyone gets a bat — you will be asked to retire on ${d.retireAt}.` : 'Batters carry on until they are out.'}</p>
       </div>
 
       <div class="card p-4 mt-4">
@@ -96,6 +113,10 @@ export default {
 
     root.querySelector('[data-act="split"]')?.addEventListener('click', () => doSplit(ctx));
     root.querySelector('[data-act="reshuffle"]')?.addEventListener('click', () => { d.shuffle++; doSplit(ctx, true); });
+    root.querySelector('[data-act="nolbw"]')?.addEventListener('click', () => { d.noLbw = !d.noLbw; rr(); });
+    root.querySelectorAll('[data-retire]').forEach(b => b.addEventListener('click', () => {
+      d.retireAt = +b.dataset.retire; rr();
+    }));
     root.querySelectorAll('[data-bf]').forEach(b => b.addEventListener('click', () => {
       if (b.dataset.bf === 'flip') {
         d.batsFirst = Math.random() < 0.5 ? 'A' : 'B';
@@ -238,7 +259,8 @@ function start(ctx) {
     maxOversPerBowler: defaultMaxOversPerBowler(overs),
     xi: { [teamA.id]: xiA, [teamB.id]: xiB },
     toss: { winnerId: d.batsFirst === 'A' ? teamA.id : teamB.id, decision: 'bat' },
-    stage: 'Turf'
+    stage: 'Turf',
+    rules: { noLbw: d.noLbw, retireAt: d.retireAt, extraBats: Math.abs(xiA.length - xiB.length) >= 2 ? 1 : 0 }
   });
   store.addMatch(m);
   d = null;

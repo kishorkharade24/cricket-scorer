@@ -33,7 +33,10 @@ function fresh(ctx) {
     stage: fx?.stage || 'Friendly',
     toss: { winnerId: null, decision: 'bat' },
     xi: {},
-    rules: { widePenalty: 1, noBallPenalty: 1, freeHitOnNoBall: true, lastManStands: false }
+    rules: {
+      widePenalty: 1, noBallPenalty: 1, freeHitOnNoBall: true, lastManStands: false,
+      noLbw: false, retireAt: 0, extraBats: 0, everyoneBowls: false
+    }
   };
 }
 
@@ -104,7 +107,10 @@ export default {
     root.querySelectorAll('[data-rule]').forEach(b => b.addEventListener('click', () => {
       const k = b.dataset.rule;
       const pen = k.match(/^__(wide|nb)(\d)$/);
+      const ret = k.match(/^__retire(\d+)$/);
       if (pen) { d.rules[pen[1] === 'wide' ? 'widePenalty' : 'noBallPenalty'] = +pen[2]; }
+      else if (ret) { d.rules.retireAt = +ret[1]; }
+      else if (k === '__extraBat') { d.rules.extraBats = d.rules.extraBats ? 0 : 1; }
       else { d.rules[k] = !d.rules[k]; }
       rr();
     }));
@@ -217,6 +223,22 @@ function step1(teams) {
         ${toggle('freeHitOnNoBall', 'Free hit after a no ball', 'Only a run out can dismiss the batter on the next legal ball')}
         ${toggle('lastManStands', 'Last man stands', 'The final batter carries on alone instead of the innings ending')}
       </div>
+      <div class="mt-4 pt-4 border-t border-white/[.07]">
+        <p class="label">Turf &amp; gully rules</p>
+        <div class="space-y-2">
+          ${toggle('noLbw', 'No LBW', 'There is no umpire, so leave it out of the list')}
+          ${toggle('everyoneBowls', 'Everyone bowls an over', 'Warns you when players still need a turn')}
+          ${toggle('__extraBat', 'Short side bats one player twice', 'Their best batter gets a second knock')}
+        </div>
+        <p class="label mt-4">Retire a batter on</p>
+        <div class="flex flex-wrap gap-2">
+          ${[0, 25, 30, 50].map(n => `<button data-rule="__retire${n}" class="btn-chip ${d.rules.retireAt === n ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${n === 0 ? 'Off' : n}</button>`).join('')}
+        </div>
+        <p class="mt-2 text-[11px] text-slate-500 leading-snug">${d.rules.retireAt
+          ? `You will be asked to retire a batter when they reach ${d.rules.retireAt}. They can come back later if the side runs short.`
+          : 'Nobody is asked to retire.'}</p>
+      </div>
+
       <div class="grid grid-cols-2 gap-3 mt-4">
         <div><p class="label">Runs for a wide</p>
           <div class="flex gap-2">${[1, 2].map(n => `<button data-rule="__wide${n}" class="btn-chip flex-1 ${d.rules.widePenalty === n ? '!bg-emerald-500 !text-onaccent' : ''}">${n}</button>`).join('')}</div></div>
@@ -247,7 +269,7 @@ async function pickTeam(label, current) {
 }
 
 function toggle(key, title, sub) {
-  const on = !!d.rules[key];
+  const on = key === '__extraBat' ? !!d.rules.extraBats : !!d.rules[key];
   return `<button data-rule="${key}" class="w-full flex items-center gap-3 rounded-xl bg-white/[.04] border border-white/10 px-3 py-2.5 text-left transition active:scale-[.99]">
     <span class="flex-1 min-w-0">
       <span class="block text-sm font-semibold text-white">${esc(title)}</span>

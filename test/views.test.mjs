@@ -82,7 +82,8 @@ t('legal balls bowled by all bowlers = innings balls', () => {
 });
 t('wickets in the card match the wicket count', () => {
   for (const st of stats.statesOf(m1)) {
-    assert.equal(st.batOrder.filter(id => st.bat[id].out).length, st.wickets);
+    // count dismissals, since a short side may send a batter back in
+    assert.equal(st.batOrder.reduce((n, id) => n + (st.bat[id].outs || 0), 0), st.wickets);
   }
 });
 t('no bowler exceeds the over quota and none bowls back-to-back', () => {

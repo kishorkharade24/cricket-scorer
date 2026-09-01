@@ -29,6 +29,11 @@ export const DISMISSALS = [
 
 export const dismissal = code => DISMISSALS.find(d => d.code === code) || DISMISSALS[0];
 
+/** The ways out that apply to this match — turf usually drops LBW. */
+export function dismissalsFor(rules = {}) {
+  return rules.noLbw ? DISMISSALS.filter(d => d.code !== 'lbw') : DISMISSALS;
+}
+
 /** On a no-ball / free hit only these are possible. */
 export const FREE_HIT_OUTS = ['runout', 'obstruct', 'hitTwice'];
 
@@ -55,6 +60,10 @@ export function newMatch(cfg) {
     noBallPenalty: 1,
     freeHitOnNoBall: true,
     lastManStands: false,
+    noLbw: false,          // turf has no umpire, so LBW usually is not played
+    retireAt: 0,           // 0 = off; otherwise offer to retire a batter on N
+    extraBats: 0,          // how many players may bat a second time (short side)
+    everyoneBowls: false,  // nudge the scorer so nobody is left out
     ...rules
   };
 
@@ -91,7 +100,8 @@ export function newInnings(battingTeamId, bowlingTeamId, overs, target) {
  * ------------------------------------------------------------------ */
 
 function blankBat(order) {
-  return { r: 0, b: 0, f4: 0, f6: 0, out: false, how: null, byBowler: null, fielder: null, retired: false, order, dots: 0 };
+  return { r: 0, b: 0, f4: 0, f6: 0, out: false, how: null, byBowler: null, fielder: null,
+           retired: false, order, dots: 0, stints: 0, outs: 0 };
 }
 function blankBowl(order) {
   return { balls: 0, runs: 0, wkts: 0, maidens: 0, wides: 0, noballs: 0, dots: 0, order };
@@ -167,11 +177,15 @@ export function computeInnings(match, idx) {
     const t = st.striker; st.striker = st.nonStriker; st.nonStriker = t;
   };
 
+  const doublesUsed = () => Object.values(st.bat).filter(b => b.stints > 1).length;
+
   const canBatAgain = id => {
     const b = st.bat[id];
     if (id === st.striker || id === st.nonStriker) return false;
-    if (!b) return true;
-    return !!b.retired && !b.out;
+    if (!b) return true;                       // has not batted yet
+    if (b.retired && !b.out) return true;      // retired hurt, can resume
+    // A short side may send someone back in for a second knock.
+    return b.out && (rules.extraBats || 0) > doublesUsed();
   };
 
   const battersLeft = () => battingXI.filter(canBatAgain).length;
@@ -184,9 +198,10 @@ export function computeInnings(match, idx) {
   const checkClose = () => {
     if (st.closed) return;
     // A Super Over ends at two wickets down regardless of how many are named.
+    const slots = sideSize + (rules.extraBats || 0);
     const allOutAt = rules.maxWickets != null
       ? rules.maxWickets
-      : (rules.lastManStands ? sideSize : sideSize - 1);
+      : (rules.lastManStands ? slots : slots - 1);
     if (st.target != null && st.runs >= st.target) { st.closed = true; st.closeReason = 'target'; return; }
     if (st.wickets >= allOutAt) { st.closed = true; st.closeReason = 'allout'; return; }
     if (st.balls >= st.maxBalls) { st.closed = true; st.closeReason = 'overs'; return; }
@@ -209,6 +224,8 @@ export function computeInnings(match, idx) {
     if (e.t === 'bat') {
       const b = ensureBat(e.id);
       b.retired = false;
+      b.stints = (b.stints || 0) + 1;
+      if (b.out) { b.out = false; b.how = null; b.byBowler = null; b.fielder = null; }  // batting again
       if (st.striker === null) st.striker = e.id;
       else if (st.nonStriker === null) st.nonStriker = e.id;
       if (st.striker && st.nonStriker && !st.partner) startPartnership();
@@ -238,7 +255,7 @@ export function computeInnings(match, idx) {
       const id = e.id;
       const b = ensureBat(id);
       if (e.out) {
-        b.out = true; b.how = 'retiredout';
+        b.out = true; b.outs = (b.outs || 0) + 1; b.how = 'retiredout';
         st.wickets++;
         st.fow.push({ w: st.wickets, runs: st.runs, balls: st.balls, batter: id });
       } else {
@@ -267,6 +284,7 @@ export function computeInnings(match, idx) {
     const bat = ensureBat(st.striker);
     const bwl = ensureBowl(st.bowler);
     const strikerAtBall = st.striker;
+    const runsBeforeBall = bat.r;
 
     const wd = !!e.wd, nb = !!e.nb, bye = !!e.b, lb = !!e.lb;
     const legal = !wd && !nb;
@@ -332,6 +350,7 @@ export function computeInnings(match, idx) {
         ob.retired = true;
       } else {
         ob.out = true;
+        ob.outs = (ob.outs || 0) + 1;
         ob.how = e.w.type;
         ob.fielder = e.w.fielder || null;
         ob.byBowler = d.credit ? st.bowler : null;
@@ -374,6 +393,13 @@ export function computeInnings(match, idx) {
       st.striker = st.nonStriker; st.nonStriker = null;
     }
 
+    // "Retire on 25" so everyone gets a bat. Flag only the delivery that takes
+    // them past the mark, so the prompt appears once rather than every ball.
+    const mark = rules.retireAt || 0;
+    st.retireDue = (mark && runsBeforeBall < mark && bat.r >= mark && !bat.out && !bat.retired)
+      ? { id: strikerAtBall, runs: bat.r, mark }
+      : null;
+
     checkClose();
   }
 
@@ -387,6 +413,8 @@ export function computeInnings(match, idx) {
   if (!st.closed && rules.lastManStands && st.striker && st.nonStriker === null && st.available.length === 0) st.needsBatter = false;
   st.needsBowler = !st.closed && st.bowler === null && st.striker !== null;
 
+  st.yetToBowl = bowlingXI.filter(id => !(st.bowl[id]?.balls));
+  st.oversLeft = Math.max(0, Math.ceil((st.maxBalls - st.balls) / 6));
   st.legalInOver = st.curOver ? st.curOver.legal : 0;
   st.thisOver = st.curOver ? st.curOver.balls : (st.overs[st.overs.length - 1]?.balls || []);
   st.prevOver = st.overs[st.overs.length - 1] || null;
@@ -396,7 +424,7 @@ export function computeInnings(match, idx) {
   st.sideSize = sideSize;
   st.wicketsLeft = (rules.maxWickets != null
     ? rules.maxWickets
-    : (rules.lastManStands ? sideSize : sideSize - 1)) - st.wickets;
+    : (rules.lastManStands ? sideSize + (rules.extraBats || 0) : sideSize + (rules.extraBats || 0) - 1)) - st.wickets;
   st.extrasTotal = st.extras.wide + st.extras.noball + st.extras.bye + st.extras.legbye + st.extras.penalty;
 
   if (st.target != null) {

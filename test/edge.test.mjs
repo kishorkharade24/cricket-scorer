@@ -290,5 +290,76 @@ t('a Super Over does not touch career figures', () => {
   assert.equal(after, before);
 });
 
+console.log('\nK. Turf rules');
+t('LBW is dropped when the match is played without an umpire', () => {
+  assert.ok(E.dismissalsFor({}).some(d => d.code === 'lbw'));
+  assert.ok(!E.dismissalsFor({ noLbw: true }).some(d => d.code === 'lbw'));
+  assert.equal(E.dismissalsFor({ noLbw: true }).length, E.DISMISSALS.length - 1);
+});
+
+t('retire-on-25 flags the ball that takes a batter past the mark, once', () => {
+  const m = mk({ overs: 10, pps: 6, batN: 6, rules: { retireAt: 25 } });
+  for (let i = 0; i < 6; i++) ball(m, { r: 4 });           // a1 has 24, still under
+  assert.equal(S(m).retireDue, null);
+  E.push(m, { t: 'bowl', id: 'b2' });
+  E.push(m, { t: 'swap' });                                 // ends change over, get a1 back on strike
+  ball(m, { r: 2 });                                        // 26, crosses the mark
+  const due = S(m).retireDue;
+  assert.ok(due, 'no retire prompt when the mark was passed');
+  assert.equal(due.id, 'a1');
+  assert.equal(due.mark, 25);
+  ball(m, { r: 1 });                                        // next ball: no repeat
+  assert.equal(S(m).retireDue, null);
+});
+t('no retire prompt when the rule is off', () => {
+  const m = mk({ overs: 10, pps: 6, batN: 6 });
+  for (let i = 0; i < 6; i++) ball(m, { r: 6 });
+  assert.equal(S(m).retireDue, null);
+});
+
+t('a short side can send one batter back in, and is all out one later', () => {
+  const m = mk({ overs: 10, pps: 5, batN: 5, rules: { extraBats: 1 } });
+  assert.equal(S(m).wicketsLeft, 5, 'five players plus one extra knock = five wickets');
+  out(m); E.push(m, { t: 'bat', id: 'a3' });
+  out(m); E.push(m, { t: 'bat', id: 'a4' });
+  out(m); E.push(m, { t: 'bat', id: 'a5' });
+  out(m);                                                   // four down, nobody fresh left
+  const st = S(m);
+  assert.equal(st.closed, false, 'the innings should still be alive');
+  assert.ok(st.available.includes('a1'), 'a dismissed batter should be offered a second knock');
+});
+t('the second knock adds to the same record rather than making a new one', () => {
+  const m = mk({ overs: 10, pps: 5, batN: 5, rules: { extraBats: 1 } });
+  ball(m, { r: 4 });
+  out(m);                                                   // a1 out for 4
+  E.push(m, { t: 'bat', id: 'a3' }); out(m);
+  E.push(m, { t: 'bat', id: 'a4' }); out(m);
+  E.push(m, { t: 'bat', id: 'a5' }); out(m);
+  E.push(m, { t: 'bat', id: 'a1' });                        // back for a second go
+  ball(m, { r: 6 });
+  const st = S(m);
+  assert.equal(st.bat.a1.r, 10, 'runs from both knocks add up');
+  assert.equal(st.bat.a1.stints, 2);
+  assert.equal(st.bat.a1.outs, 1);
+  assert.equal(st.batOrder.filter(id => id === 'a1').length, 1, 'listed once on the card');
+});
+t('only as many second knocks as the rule allows', () => {
+  const m = mk({ overs: 10, pps: 4, batN: 4, rules: { extraBats: 1 } });
+  out(m); E.push(m, { t: 'bat', id: 'a3' });
+  out(m); E.push(m, { t: 'bat', id: 'a4' });
+  out(m); E.push(m, { t: 'bat', id: 'a1' });                // the one allowed second knock
+  out(m);
+  const st = E.computeInnings(m, 0);
+  assert.equal(st.closed, true, 'no further second knocks, so the innings is over');
+});
+
+t('the app knows who has not bowled yet', () => {
+  const m = mk({ overs: 6, pps: 6, batN: 6, bowlN: 4, mopb: 2 });
+  for (let i = 0; i < 6; i++) ball(m);
+  const st = S(m);
+  assert.deepEqual(st.yetToBowl, ['b2', 'b3', 'b4']);
+  assert.equal(st.oversLeft, 5);
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -128,6 +128,49 @@ async function tieBreakSheet(m, ctx) {
 }
 
 /** Pick three a side, then score it like any other match. */
+
+// Held here rather than on window: the picker redraws itself on every tap, so
+// the ticks and counts always match what will actually be used.
+let soPick = null;
+let soMatch = null;
+
+function soPanesHtml(m) {
+  const pane = teamId => {
+    const chosen = soPick[teamId] || [];
+    return `
+      <div class="mt-4">
+        <div class="flex items-center gap-2 mb-2">
+          ${badge(teamId, 'sm')}
+          <p class="flex-1 text-sm font-bold text-white truncate">${esc(teamName(teamId))}</p>
+          <span class="num text-[11px] font-bold ${chosen.length < 2 ? 'text-rose-400' : 'text-emerald-400'}">${chosen.length}/3</span>
+        </div>
+        <div class="grid gap-1.5 max-h-40 overflow-y-auto no-scrollbar">
+          ${(m.xi[teamId] || []).map(id => {
+            const on = chosen.includes(id);
+            const order = chosen.indexOf(id) + 1;
+            return `<button data-sopick="${teamId}:${id}" class="flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition active:scale-[.98] ${
+              on ? 'bg-emerald-500/12 border-emerald-500/35' : 'bg-white/[.03] border-white/8'}">
+              <span class="w-4 text-center text-[10px] font-bold num ${on ? 'text-emerald-400' : 'text-slate-600'}">${on ? order : '·'}</span>
+              <span class="h-6 w-6 shrink-0 grid place-items-center rounded-full bg-white/8 text-[9px] font-bold text-slate-300">${esc(initials(nameOf(id)))}</span>
+              <span class="flex-1 min-w-0 text-xs font-semibold truncate ${on ? 'text-white' : 'text-slate-400'}">${esc(nameOf(id))}</span>
+              <span class="text-xs ${on ? 'text-emerald-400' : 'text-transparent'}">✓</span></button>`;
+          }).join('')}
+        </div>
+      </div>`;
+  };
+  const short = m.teams.filter(t => (soPick[t] || []).length < 2);
+  return m.teams.map(pane).join('') +
+    (short.length
+      ? `<p class="mt-3 rounded-lg bg-rose-500/12 border border-rose-500/25 px-3 py-2 text-[11px] text-rose-200 leading-snug">
+           ${esc(short.map(teamName).join(' and '))} ${short.length > 1 ? 'need' : 'needs'} at least two players.</p>`
+      : '');
+}
+
+function redrawSoPanes() {
+  const host = document.querySelector('#soPanes');
+  if (host && soMatch) host.innerHTML = soPanesHtml(soMatch);
+}
+
 async function startSuperOver(m, ctx) {
   const states = statesOf(m);
   // Default to the three who scored most in the match — the usual choice.
@@ -137,49 +180,34 @@ async function startSuperOver(m, ctx) {
     const ranked = [...xi].sort((a, b) => ((st?.bat[b]?.r) || 0) - ((st?.bat[a]?.r) || 0));
     return ranked.slice(0, 3);
   };
-  const picked = { [m.teams[0]]: topThree(m.teams[0]), [m.teams[1]]: topThree(m.teams[1]) };
-  window.__soPick = picked;
-
-  const pane = teamId => `
-    <div class="mt-4">
-      <div class="flex items-center gap-2 mb-2">
-        ${badge(teamId, 'sm')}
-        <p class="flex-1 text-sm font-bold text-white truncate">${esc(teamName(teamId))}</p>
-        <span class="num text-[11px] font-bold text-emerald-400" data-socount="${teamId}">${picked[teamId].length}/3</span>
-      </div>
-      <div class="grid gap-1.5 max-h-40 overflow-y-auto no-scrollbar">
-        ${(m.xi[teamId] || []).map(id => {
-          const on = picked[teamId].includes(id);
-          return `<button data-sopick="${teamId}:${id}" class="flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition ${
-            on ? 'bg-emerald-500/12 border-emerald-500/35' : 'bg-white/[.03] border-white/8'}">
-            <span class="h-6 w-6 shrink-0 grid place-items-center rounded-full bg-white/8 text-[9px] font-bold text-slate-300">${esc(initials(nameOf(id)))}</span>
-            <span class="flex-1 min-w-0 text-xs font-semibold truncate ${on ? 'text-white' : 'text-slate-400'}">${esc(nameOf(id))}</span>
-            ${on ? '<span class="text-emerald-400 text-xs">✓</span>' : ''}</button>`;
-        }).join('')}
-      </div>
-    </div>`;
+  soMatch = m;
+  soPick = { [m.teams[0]]: topThree(m.teams[0]), [m.teams[1]]: topThree(m.teams[1]) };
 
   const chased = m.innings[1]?.battingTeamId || m.teams[1];
   const v = await sheet(`
     <h3 class="text-lg font-bold text-white">Super Over</h3>
     <p class="text-xs text-slate-500 mt-1 leading-relaxed">One over each and two wickets ends an innings.
       <b class="text-slate-300">${esc(teamName(chased))}</b> bat first, having chased.
-      Three batters a side — the bowler is chosen when you start.</p>
-    ${pane(m.teams[0])}
-    ${pane(m.teams[1])}
+      Up to three batters a side — the bowler is chosen when you start.</p>
+    <div id="soPanes">${soPanesHtml(m)}</div>
     <div class="mt-5 grid grid-cols-2 gap-3">
       <button class="btn-ghost" data-close="__dismiss">Cancel</button>
       <button class="btn-primary" data-close="go">Start Super Over</button>
     </div>`, { grab: false });
 
-  if (v !== 'go') return;
-  const sel = window.__soPick;
-  if (m.teams.some(t => (sel[t] || []).length < 2)) { toast('Pick at least two players a side', 'warn'); return; }
+  if (v !== 'go') { soPick = null; soMatch = null; return; }
+
+  const short = m.teams.filter(t => (soPick[t] || []).length < 2);
+  if (short.length) {
+    toast(`${short.map(teamName).join(' and ')} need at least two players`, 'warn', 3500);
+    return startSuperOver(m, ctx);        // reopen with the selection intact
+  }
 
   const previous = store.matches().filter(x => x.parentMatchId === m.id).length;
-  const so = E.newSuperOver(m, { [m.teams[0]]: sel[m.teams[0]], [m.teams[1]]: sel[m.teams[1]] },
+  const so = E.newSuperOver(m, { [m.teams[0]]: soPick[m.teams[0]], [m.teams[1]]: soPick[m.teams[1]] },
                             { number: previous + 1 });
   store.addMatch(so);
+  soPick = null; soMatch = null;
   ctx.go('/score/' + so.id);
 }
 
@@ -225,23 +253,16 @@ document.addEventListener('click', e => {
 
   const pick = e.target.closest('[data-sopick]');
   if (pick) {
-    const [tid, pid] = pick.dataset.sopick.split(':');
-    const sel = window.__soPick;
-    if (!sel) return;
-    const list = sel[tid] || (sel[tid] = []);
-    const i = list.indexOf(pid);
-    if (i >= 0) list.splice(i, 1);
+    const raw = pick.dataset.sopick;
+    const i = raw.indexOf(':');
+    const tid = raw.slice(0, i), pid = raw.slice(i + 1);
+    if (!soPick) return;
+    const list = soPick[tid] || (soPick[tid] = []);
+    const at = list.indexOf(pid);
+    if (at >= 0) list.splice(at, 1);
     else if (list.length >= 3) { toast('Three a side in a Super Over', 'warn'); return; }
     else list.push(pid);
-    // repaint just this row and the counter
-    const on = list.includes(pid);
-    pick.className = pick.className
-      .replace('bg-emerald-500/12 border-emerald-500/35', 'bg-white/[.03] border-white/8')
-      .replace('bg-white/[.03] border-white/8', on ? 'bg-emerald-500/12 border-emerald-500/35' : 'bg-white/[.03] border-white/8');
-    const label = pick.querySelector('span:nth-child(2)');
-    if (label) label.classList.toggle('text-white', on);
-    const counter = document.querySelector(`[data-socount="${tid}"]`);
-    if (counter) counter.textContent = `${list.length}/3`;
+    redrawSoPanes();
     return;
   }
   const win = e.target.closest('[data-tbwin]');

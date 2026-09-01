@@ -10,6 +10,7 @@ let armed = null;         // 'wd' | 'nb' | 'b' | 'lb'
 let busy = false;         // a prompt sheet is open
 let shownResultFor = null;
 let breakShown = null;    // stops the innings-break sheet reopening forever
+const retireDeclined = new Set();   // "keep batting" should not be asked twice
 let lastMatchId = null;
 
 export default {
@@ -334,6 +335,45 @@ async function ensurePrompts(m, ctx) {
   }
   if (st.needsBatter) { await askBatter(m, ctx); return; }
   if (st.needsBowler) { await askBowler(m, ctx); return; }
+  if (st.retireDue) { await askRetire(m, st, ctx); return; }
+}
+
+/**
+ * "Retire on 25" so everyone in a turf side gets a bat. Offered once, when the
+ * batter crosses the mark — they can be sent back in later if the side runs
+ * short, so nothing is lost by retiring.
+ */
+async function askRetire(m, st, ctx) {
+  const { id, runs, mark } = st.retireDue;
+  const key = `${m.id}:${id}:${mark}`;
+  if (retireDeclined.has(key)) return;
+
+  busy = true;
+  const b = st.bat[id];
+  const v = await sheet(`
+    <div class="text-center">
+      <p class="text-3xl">🫱</p>
+      <h3 class="mt-2 text-lg font-bold text-white">${esc(nameOf(id))} is on ${runs}</h3>
+      <p class="mt-1 text-xs text-slate-500 num">${b.r} (${b.b}) · ${b.f4}×4 · ${b.f6}×6</p>
+    </div>
+    <p class="mt-4 rounded-xl bg-white/[.05] border border-white/10 px-3 py-2.5 text-[11px] text-slate-400 leading-snug">
+      This match retires a batter on ${mark} so everyone gets a knock. They keep their runs
+      and can come back in later if the side runs out of batters.</p>
+    <div class="mt-5 grid grid-cols-2 gap-3">
+      <button class="btn-ghost" data-close="stay">Keep batting</button>
+      <button class="btn-primary" data-close="retire">Retire on ${runs}</button>
+    </div>`, { grab: false });
+
+  busy = false;
+  if (v === 'retire') {
+    E.push(m, { t: 'retire', id, out: false });
+    E.autoAdvance(m);
+    store.save();
+    toast(`${nameOf(id)} retired on ${runs}`, 'ok');
+  } else {
+    retireDeclined.add(key);
+  }
+  ctx.render();
 }
 
 async function askBatter(m, ctx) {
@@ -352,7 +392,8 @@ async function askBatter(m, ctx) {
           <span class="w-5 text-center text-[11px] font-bold num text-slate-600">${st.battingXI.indexOf(id) + 1}</span>
           <span class="h-8 w-8 grid place-items-center rounded-full bg-white/8 text-[11px] font-bold text-slate-300">${esc(initials(nameOf(id)))}</span>
           <span class="flex-1 min-w-0 text-sm font-semibold text-white truncate">${esc(nameOf(id))}</span>
-          ${b?.retired ? '<span class="pill bg-amber-500/15 text-amber-300">resuming</span>' : ''}
+          ${b?.out ? '<span class="pill bg-sky-500/15 text-sky-300">second knock</span>'
+            : b?.retired ? '<span class="pill bg-amber-500/15 text-amber-300">resuming</span>' : ''}
         </button>`;
       }).join('')}
     </div>
@@ -373,6 +414,7 @@ async function askBowler(m, ctx, midOver = false) {
   const xi = st.bowlingXI;
 
   const allowed = new Set(midOver ? st.bowlingXI : st.bowlersAvailable);
+  const mustBowl = new Set(m.rules?.everyoneBowls ? st.yetToBowl : []);
 
   const row = id => {
     const w = st.bowl[id];
@@ -390,6 +432,7 @@ async function askBowler(m, ctx, midOver = false) {
         <span class="block text-sm font-semibold text-white truncate">${esc(nameOf(id))}</span>
         <span class="block text-[10px] text-slate-500 num">${w ? `${oversOf(w.balls)}-${w.maidens}-${w.runs}-${w.wkts}` : 'yet to bowl'}${why ? ' · ' + why : ''}</span>
       </span>
+      ${mustBowl.has(id) && !off ? '<span class="pill bg-amber-500/15 text-amber-300">yet to bowl</span>' : ''}
       ${w && w.balls ? `<span class="num text-[11px] font-bold text-slate-400">${fixed((w.runs * 6) / w.balls)}</span>` : ''}
     </button>`;
   };
@@ -400,11 +443,19 @@ async function askBowler(m, ctx, midOver = false) {
     both:   'No bowler is left under the normal rules. Pick anyone to keep the game going.'
   }[st.bowlerRuleRelaxed] : null;
 
+  const nudge = m.rules?.everyoneBowls && !midOver && st.yetToBowl.length
+    ? (st.yetToBowl.length >= st.oversLeft
+        ? `Only ${st.oversLeft} over${st.oversLeft === 1 ? '' : 's'} left and ${st.yetToBowl.length} still to bowl — they need to come on now.`
+        : `${st.yetToBowl.length} player${st.yetToBowl.length === 1 ? '' : 's'} still to bowl this innings.`)
+    : null;
+
   const v = await sheet(`
     <h3 class="text-lg font-bold text-white">${midOver ? 'Change bowler' : `Bowler for over ${Math.floor(st.balls / 6) + 1}`}</h3>
+    ${nudge ? `<p class="mt-2 rounded-lg ${st.yetToBowl.length >= st.oversLeft ? 'bg-rose-500/12 border-rose-500/25 text-rose-200' : 'bg-white/[.05] border-white/10 text-slate-400'} border px-3 py-2 text-[11px] leading-snug">${esc(nudge)}</p>` : ''}
     <p class="text-xs text-slate-500 mt-1">Max ${st.maxOversPerBowler} over${st.maxOversPerBowler === 1 ? '' : 's'} each${midOver ? '' : ' · the previous over’s bowler cannot continue'}</p>
     ${relaxed ? `<p class="mt-2 rounded-lg bg-amber-500/12 border border-amber-500/25 px-3 py-2 text-[11px] text-amber-200 leading-snug">${esc(relaxed)}</p>` : ''}
-    <div class="mt-4 grid gap-1.5 max-h-[46vh] overflow-y-auto no-scrollbar">${xi.map(row).join('')}</div>
+    <div class="mt-4 grid gap-1.5 max-h-[46vh] overflow-y-auto no-scrollbar">${
+      [...xi].sort((a, b) => (mustBowl.has(b) ? 1 : 0) - (mustBowl.has(a) ? 1 : 0)).map(row).join('')}</div>
     ${midOver ? '' : `<button class="btn-ghost w-full mt-3 text-xs" data-close="undo">${ICON.undo} Undo the last ball instead</button>`}`, { grab: false });
 
   busy = false;
@@ -418,8 +469,10 @@ async function askBowler(m, ctx, midOver = false) {
 async function wicketFlow(m, ctx) {
   busy = true;
   const st = E.computeInnings(m, m.innings.length - 1);
-  const allowed = st.freeHit ? E.DISMISSALS.filter(x => E.FREE_HIT_OUTS.includes(x.code) || x.code === 'retired')
-                             : E.DISMISSALS;
+  const forMatch = E.dismissalsFor(m.rules);
+  const allowed = st.freeHit
+    ? forMatch.filter(x => E.FREE_HIT_OUTS.includes(x.code) || x.code === 'retired')
+    : forMatch;
 
   const v = await sheet(`
     <h3 class="text-lg font-bold text-white">How were they out?</h3>
