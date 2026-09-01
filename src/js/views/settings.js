@@ -217,6 +217,10 @@ async function displaySheet() {
   probe.remove();
 
   const gap = nav ? Math.round(window.innerHeight - nav.bottom) : null;
+  // Safari's per-site Page Zoom is invisible to a page except through this
+  // ratio. At 75% the layout viewport is 4/3 of the screen, and iOS leaves a
+  // strip at the bottom of exactly the kind reported against this app.
+  const zoom = window.screen?.width ? Math.round((window.screen.width / window.innerWidth) * 100) : 100;
   const standalone = window.matchMedia?.('(display-mode: standalone)').matches ||
                      window.navigator.standalone === true;
 
@@ -231,7 +235,8 @@ async function displaySheet() {
     `shell ${Math.round(shell.width)}x${Math.round(shell.height)}`,
     `safe area t${safe.top} r${safe.right} b${safe.bottom} l${safe.left}`,
     `gap under bar ${gap}`,
-    `standalone ${standalone}`
+    `standalone ${standalone}`,
+    `page zoom ${zoom}%`
   ].join('\n');
 
   const v = await sheet(`
@@ -243,9 +248,15 @@ async function displaySheet() {
     ${row('App shell', `${Math.round(shell.width)} x ${Math.round(shell.height)}`, Math.round(shell.height) !== window.innerHeight)}
     ${row('Gap under the bar', gap == null ? '—' : `${gap} px`, !!gap)}
     ${row('Safe area', `${safe.top} / ${safe.right} / ${safe.bottom} / ${safe.left}`)}
+    ${row('Page zoom', `${zoom}%`, Math.abs(zoom - 100) > 4)}
     ${row('Installed to home screen', standalone ? 'yes' : 'no')}
     ${row('Web view vs screen', `${window.innerHeight} of ${window.screen?.height}`,
           !!window.screen?.height && window.innerHeight < window.screen.height - 1)}
+    ${Math.abs(zoom - 100) > 4 ? `<div class="mt-3 rounded-xl bg-amber-500/10 border border-amber-500/25 p-3">
+      <p class="text-[11px] text-amber-200 leading-relaxed"><b>Safari is showing this site at ${zoom}% zoom</b>,
+      which is what leaves a strip at the bottom of the screen. In Safari, open the site, tap the
+      <b>Aa</b> button in the address bar and set it back to 100%, then remove the app from the Home
+      Screen and add it again — the installed app inherits Safari's zoom for the site.</p></div>` : ''}
     <p class="mt-3 text-[11px] text-slate-500 leading-snug">If the web view is shorter than the screen, iOS is
       painting the difference itself. The app cannot draw there, so that strip is coloured to match the bars.</p>
     <div class="mt-5 grid grid-cols-2 gap-3">
