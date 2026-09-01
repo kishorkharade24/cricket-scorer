@@ -44,16 +44,23 @@
       <!-- App mark. Sits where the back arrow would be, on the top-level screens. -->
       <span id="brandLogo" class="shrink-0 h-9 w-9 rounded-xl grid place-items-center
             bg-gradient-to-br from-rose-500/20 to-rose-600/5 border border-rose-500/25" aria-hidden="true">
-        <svg viewBox="0 0 32 32" class="h-6 w-6" role="img">
+        <svg viewBox="0 0 64 64" class="h-7 w-7" role="img">
           <defs>
-            <radialGradient id="ballG" cx="34%" cy="30%" r="78%">
+            <radialGradient id="ballG" cx="35%" cy="30%" r="75%">
               <stop offset="0" stop-color="#fb7185"/><stop offset="55%" stop-color="#e11d48"/><stop offset="1" stop-color="#8d1533"/>
             </radialGradient>
+            <linearGradient id="willowG" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#b9884b"/><stop offset=".5" stop-color="#e6bc7a"/><stop offset="1" stop-color="#ad7c42"/>
+            </linearGradient>
           </defs>
-          <circle cx="16" cy="16" r="11.5" fill="url(#ballG)"/>
-          <path d="M12.6 6.4c-2 3.4-2 15.8 0 19.2" fill="none" stroke="#fff8ee" stroke-width="1.2" stroke-linecap="round" opacity=".95"/>
-          <g stroke="#fff8ee" stroke-width="1" stroke-linecap="round" opacity=".9">
-            <path d="M10.7 9.6h3.4M10.3 12.6h4.2M10.2 15.9h4.4M10.3 19.2h4.2M10.7 22.2h3.4"/>
+          <g transform="rotate(28 30 30)">
+            <rect x="26.9" y="3.5" width="6.2" height="12.5" rx="3.1" fill="#4a301e"/>
+            <rect x="23.6" y="13.6" width="12.8" height="35" rx="5.4" fill="url(#willowG)"/>
+          </g>
+          <circle cx="41.5" cy="43" r="12.4" fill="url(#ballG)"/>
+          <path d="M44.6 31.6c-4.4 3.6-4.4 19.2 0 22.8" fill="none" stroke="#fcf7ec" stroke-width="1.3" stroke-linecap="round"/>
+          <g stroke="#fcf7ec" stroke-width="1" stroke-linecap="round" opacity=".92">
+            <path d="M40.6 35.4l3-1M40 39.4l3.2-.5M39.8 43h3.2M40 46.6l3.2.5M40.6 50.6l3 1"/>
           </g>
         </svg>
       </span>

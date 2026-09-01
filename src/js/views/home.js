@@ -22,16 +22,7 @@ export default {
     const tours = sortBy(d.tournaments, '-createdAt').slice(0, 4);
     const fresh = d.teams.length === 0;
 
-    const zoom = typeof window !== 'undefined' && window.screen?.width
-      ? Math.round((window.screen.width / window.innerWidth) * 100) : 100;
-
     return `
-      ${Math.abs(zoom - 100) > 4 ? `<div class="card p-4 mb-4 border-amber-500/25 bg-amber-500/[.06]">
-        <p class="text-sm font-bold text-amber-300">This screen is zoomed to ${zoom}%</p>
-        <p class="mt-1 text-[11px] text-slate-400 leading-relaxed">Safari's page-zoom setting for this site.
-          It squeezes the app and leaves a strip at the bottom of the screen. In Safari tap
-          <b class="text-slate-300">Aa</b> in the address bar → 100%, then re-add the app to the Home Screen.</p>
-      </div>` : ''}
       ${fresh ? welcome() : ''}
       ${live.length ? `${section('In progress')}<div class="space-y-3">${live.map(m => matchCard(m)).join('')}</div>` : ''}
 
