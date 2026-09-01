@@ -179,9 +179,18 @@ export function computeInnings(match, idx) {
   const checkClose = () => {
     if (st.closed) return;
     const allOutAt = rules.lastManStands ? st.playersPerSide : st.playersPerSide - 1;
-    if (st.target != null && st.runs >= st.target) { st.closed = true; st.closeReason = 'target'; }
-    else if (st.wickets >= allOutAt) { st.closed = true; st.closeReason = 'allout'; }
-    else if (st.balls >= st.maxBalls) { st.closed = true; st.closeReason = 'overs'; }
+    if (st.target != null && st.runs >= st.target) { st.closed = true; st.closeReason = 'target'; return; }
+    if (st.wickets >= allOutAt) { st.closed = true; st.closeReason = 'allout'; return; }
+    if (st.balls >= st.maxBalls) { st.closed = true; st.closeReason = 'overs'; return; }
+
+    // A squad can be smaller than the nominal team size — eight a side, or a
+    // couple of players missing. The innings is over when an end falls vacant
+    // and there is nobody left to walk in, whatever the wicket count says.
+    const endVacant = st.striker === null || st.nonStriker === null;
+    const loneBatterCarriesOn = rules.lastManStands && st.striker !== null && st.nonStriker === null;
+    if (endVacant && battersLeft() === 0 && !loneBatterCarriesOn) {
+      st.closed = true; st.closeReason = 'allout';
+    }
   };
 
   /* ---- walk the events ---- */
@@ -385,11 +394,25 @@ export function computeInnings(match, idx) {
   }
   st.projected = st.balls > 0 ? Math.round(st.crr * st.maxOvers) : 0;
 
-  st.bowlersAvailable = bowlingXI.filter(id => {
-    if (id === st.lastBowler) return false;
+  /* Who can bowl the next over.
+   *
+   * Normally: not the bowler who just bowled, and not anyone who has used up
+   * their quota. In a short-handed game those two rules can rule everybody out
+   * (two bowlers with a one-over quota each, say) and the match would simply
+   * stop. So we relax them in order rather than offering an empty list, and
+   * tell the UI which rule had to give way. */
+  const underQuota = id => {
     const b = st.bowl[id];
-    return !b || Math.floor(b.balls / 6) < st.maxOversPerBowler || (b.balls % 6 !== 0 && Math.floor(b.balls / 6) < st.maxOversPerBowler);
-  });
+    return !b || Math.ceil(b.balls / 6) < st.maxOversPerBowler;
+  };
+  const strict  = bowlingXI.filter(id => id !== st.lastBowler && underQuota(id));
+  const noRepeatRule = bowlingXI.filter(underQuota);              // quota kept, repeat allowed
+  const noQuotaRule  = bowlingXI.filter(id => id !== st.lastBowler); // repeat kept, quota broken
+
+  if (strict.length)            { st.bowlersAvailable = strict;      st.bowlerRuleRelaxed = null; }
+  else if (noRepeatRule.length) { st.bowlersAvailable = noRepeatRule; st.bowlerRuleRelaxed = 'repeat'; }
+  else if (noQuotaRule.length)  { st.bowlersAvailable = noQuotaRule;  st.bowlerRuleRelaxed = 'quota'; }
+  else                          { st.bowlersAvailable = [...bowlingXI]; st.bowlerRuleRelaxed = 'both'; }
 
   return st;
 }
@@ -467,11 +490,32 @@ export function computeResult(match, innings) {
   };
 }
 
+/**
+ * A tie still has to send someone through in a knockout. Record how it was
+ * settled without pretending the match itself was won.
+ */
+export function setTieBreak(match, winnerId, method = 'Super Over') {
+  match.tieBreak = winnerId ? { winnerId, method } : null;
+  match.updatedAt = Date.now();
+  return match.tieBreak;
+}
+
+/** The side that progresses: the winner, or the tie-break winner. */
+export function advancingTeam(match) {
+  if (match.result?.winnerId) return match.result.winnerId;
+  if (match.result?.tie && match.tieBreak?.winnerId) return match.tieBreak.winnerId;
+  return null;
+}
+
 export function resultText(match, innings, nameOf) {
   const r = match.result || computeResult(match, innings);
   if (!r) return null;
   if (r.abandoned) return 'Match abandoned';
-  if (r.tie) return `Match tied${match.superOverWinner ? ` — ${nameOf(match.superOverWinner)} won the Super Over` : ''}`;
+  if (r.tie) {
+    return match.tieBreak?.winnerId
+      ? `Match tied — ${nameOf(match.tieBreak.winnerId)} won the ${match.tieBreak.method}`
+      : 'Match tied';
+  }
   if (r.type === 'wickets') {
     return `${nameOf(r.winnerId)} won by ${r.margin} wicket${r.margin === 1 ? '' : 's'}` +
            (r.ballsLeft ? ` (${r.ballsLeft} ball${r.ballsLeft === 1 ? '' : 's'} left)` : '');

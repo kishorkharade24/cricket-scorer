@@ -61,6 +61,7 @@ export default {
       E.push(m, { t: 'swap' }); store.save(); haptic(); rr();
     });
     root.querySelector('[data-act="scorecard"]')?.addEventListener('click', () => ctx.go('/scorecard/' + m.id));
+    root.querySelector('[data-act="bigruns"]')?.addEventListener('click', () => bigRuns(m, ctx));
     root.querySelectorAll('[data-act="pickbowler"]').forEach(b => b.addEventListener('click', () => askBowler(m, ctx, true)));
     document.querySelector('#pageActions [data-act="more"]')?.addEventListener('click', () => moreMenu(m, ctx));
 
@@ -253,7 +254,7 @@ function pad(st) {
     <div class="grid grid-cols-3 gap-2 mt-2">
       <button data-act="undo" class="btn-ghost !py-3 text-xs">${ICON.undo} Undo</button>
       <button data-act="swap" class="btn-ghost !py-3 text-xs">⇄ Swap</button>
-      <button data-act="scorecard" class="btn-ghost !py-3 text-xs">${ICON.card} Card</button>
+      <button data-act="bigruns" class="btn-ghost !py-3 text-xs">7+ runs</button>
     </div>
   </div>`;
 }
@@ -340,7 +341,7 @@ async function askBatter(m, ctx) {
   const body = `
     <h3 class="text-lg font-bold text-white">Next batter in</h3>
     <p class="text-xs text-slate-500 mt-1">${st.wickets} down · ${st.runs}/${st.wickets} after ${st.oversText} overs</p>
-    <div class="mt-4 grid gap-1.5 max-h-[52vh] overflow-y-auto no-scrollbar">
+    <div class="mt-4 grid gap-1.5 max-h-[46vh] overflow-y-auto no-scrollbar">
       ${list.map((id, i) => {
         const b = st.bat[id];
         return `<button data-pickbat="${id}" class="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-left hover:bg-white/10 active:scale-[.98] transition">
@@ -350,10 +351,12 @@ async function askBatter(m, ctx) {
           ${b?.retired ? '<span class="pill bg-amber-500/15 text-amber-300">resuming</span>' : ''}
         </button>`;
       }).join('')}
-    </div>`;
+    </div>
+    <button class="btn-ghost w-full mt-3 text-xs" data-close="undo">${ICON.undo} Wrong call — undo that ball</button>`;
 
   const v = await sheet(body, { grab: false });
   busy = false;
+  if (v === 'undo') { undoBall(m, ctx); return; }
   if (!v || !v.startsWith('bat:')) { ctx.render(); return; }
   E.push(m, { t: 'bat', id: v.slice(4) });
   store.save();
@@ -365,12 +368,14 @@ async function askBowler(m, ctx, midOver = false) {
   const st = E.computeInnings(m, m.innings.length - 1);
   const xi = st.bowlingXI;
 
+  const allowed = new Set(midOver ? st.bowlingXI : st.bowlersAvailable);
+
   const row = id => {
     const w = st.bowl[id];
     const overs = w ? Math.ceil(w.balls / 6) : 0;
     const quotaOut = overs >= st.maxOversPerBowler;
     const consecutive = id === st.lastBowler && !midOver;
-    const off = quotaOut || consecutive;
+    const off = !allowed.has(id);
     const why = quotaOut ? 'quota done' : consecutive ? 'bowled last over' : '';
     return `<button data-pickbowl="${id}" ${off ? 'disabled' : ''}
       class="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${off
@@ -385,12 +390,21 @@ async function askBowler(m, ctx, midOver = false) {
     </button>`;
   };
 
+  const relaxed = !midOver && st.bowlerRuleRelaxed ? {
+    repeat: 'Everyone else has used their quota, so the previous over’s bowler can continue.',
+    quota:  'Every bowler has finished their quota. Carrying on past it to keep the game going.',
+    both:   'No bowler is left under the normal rules. Pick anyone to keep the game going.'
+  }[st.bowlerRuleRelaxed] : null;
+
   const v = await sheet(`
     <h3 class="text-lg font-bold text-white">${midOver ? 'Change bowler' : `Bowler for over ${Math.floor(st.balls / 6) + 1}`}</h3>
     <p class="text-xs text-slate-500 mt-1">Max ${st.maxOversPerBowler} over${st.maxOversPerBowler === 1 ? '' : 's'} each${midOver ? '' : ' · the previous over’s bowler cannot continue'}</p>
-    <div class="mt-4 grid gap-1.5 max-h-[52vh] overflow-y-auto no-scrollbar">${xi.map(row).join('')}</div>`, { grab: false });
+    ${relaxed ? `<p class="mt-2 rounded-lg bg-amber-500/12 border border-amber-500/25 px-3 py-2 text-[11px] text-amber-200 leading-snug">${esc(relaxed)}</p>` : ''}
+    <div class="mt-4 grid gap-1.5 max-h-[46vh] overflow-y-auto no-scrollbar">${xi.map(row).join('')}</div>
+    ${midOver ? '' : `<button class="btn-ghost w-full mt-3 text-xs" data-close="undo">${ICON.undo} Undo the last ball instead</button>`}`, { grab: false });
 
   busy = false;
+  if (v === 'undo') { undoBall(m, ctx); return; }
   if (!v || !v.startsWith('bowl:')) { ctx.render(); return; }
   E.push(m, { t: 'bowl', id: v.slice(5) });
   store.save();
@@ -471,6 +485,22 @@ async function wicketFlow(m, ctx) {
   commit(m, ev, ctx);
 }
 
+/** Overthrows and all-run boundaries: anything above six off one delivery. */
+async function bigRuns(m, ctx) {
+  busy = true;
+  const v = await sheet(`
+    <h3 class="text-lg font-bold text-white">More than six off one ball</h3>
+    <p class="text-xs text-slate-500 mt-1">Overthrows, or an all-run boundary with extras.
+      ${armed ? `The <b class="text-amber-300">${armed === 'wd' ? 'wide' : armed === 'nb' ? 'no ball' : armed === 'b' ? 'bye' : 'leg bye'}</b> you armed still applies.` : ''}</p>
+    <div class="grid grid-cols-4 gap-2 mt-4">
+      ${[7, 8, 9, 10].map(n => `<button data-big="${n}" class="runbtn h-16 text-2xl bg-white/10 text-white border-white/15">${n}</button>`).join('')}
+    </div>
+    <button class="btn-ghost w-full mt-4" data-close="__dismiss">Cancel</button>`, { grab: false });
+  busy = false;
+  if (!v || !v.startsWith('big:')) { ctx.render(); return; }
+  runTap(m, +v.slice(4), ctx);
+}
+
 async function inningsBreak(m, ctx) {
   busy = true;
   const first = E.computeInnings(m, 0);
@@ -511,12 +541,25 @@ async function resultSheet(m, ctx) {
   const text = E.resultText(m, states, teamName) || 'Match complete';
   const cands = motmCandidates(m).slice(0, 6);
 
+  const tied = m.result?.tie && !m.tieBreak?.winnerId;
+
   const v = await sheet(`
     <div class="text-center">
-      <p class="text-4xl animate-pop">🏆</p>
+      <p class="text-4xl animate-pop">${m.result?.tie ? '🤝' : '🏆'}</p>
       <h3 class="mt-2 text-xl font-extrabold text-white leading-snug">${esc(text)}</h3>
       <p class="mt-1 text-xs text-slate-500">${states.map(s => `${teamName(s.battingTeamId)} ${s.runs}/${s.wickets} (${s.oversText})`).join(' · ')}</p>
     </div>
+    ${tied ? `
+      <div class="mt-5 rounded-xl bg-amber-500/10 border border-amber-500/25 p-3">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-amber-300">Scores level</p>
+        <p class="mt-1 text-[11px] text-slate-400 leading-snug">The match is a tie. If it was settled with a Super Over
+          or a bowl-out, record who went through — a knockout bracket needs it.</p>
+        <div class="mt-3 grid grid-cols-2 gap-2">
+          ${m.teams.map(tid => `<button data-tiewin="${tid}" class="rounded-xl bg-white/5 border border-white/10 px-2 py-2.5 text-center hover:bg-amber-500/15 hover:border-amber-500/35 active:scale-95 transition">
+            <span class="block text-[11px] font-bold text-white truncate">${esc(teamName(tid))}</span>
+            <span class="block text-[9px] text-slate-500">went through</span></button>`).join('')}
+        </div>
+      </div>` : ''}
     <p class="label mt-6">Player of the match</p>
     <div class="grid gap-1.5 max-h-56 overflow-y-auto no-scrollbar">
       ${cands.map(c => `<button data-motm="${c.id}" class="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-left hover:bg-amber-500/10 hover:border-amber-500/30 active:scale-[.98] transition">
@@ -530,6 +573,14 @@ async function resultSheet(m, ctx) {
     </div>`, { grab: false });
 
   busy = false;
+  if (v && v.startsWith('tiewin:')) {
+    E.setTieBreak(m, v.slice(7), 'Super Over');
+    store.save(true);
+    toast(`${teamName(m.tieBreak.winnerId)} went through`, 'ok');
+    shownResultFor = null;          // reopen so the player of the match can still be picked
+    ctx.render();
+    return;
+  }
   if (v && v.startsWith('motm:')) {
     m.motm = v.slice(5);
     store.save(true);
@@ -650,7 +701,7 @@ async function shareScore(m) {
 /* sheet result plumbing — every button just closes with a prefixed value */
 document.addEventListener('click', e => {
   const map = ['pickbat:bat', 'pickbowl:bowl', 'out:out', 'who:who', 'field:field', 'wr:wr',
-               'motm:motm', 'menu:menu', 'ret:ret'];
+               'motm:motm', 'menu:menu', 'ret:ret', 'tiewin:tiewin', 'big:big'];
   for (const pair of map) {
     const [attr, prefix] = pair.split(':');
     const b = e.target.closest(`[data-${attr}]`);

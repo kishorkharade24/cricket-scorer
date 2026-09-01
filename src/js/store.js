@@ -29,6 +29,7 @@ function empty() {
 let db = null;
 let saveTimer = null;
 const listeners = new Set();
+const externalListeners = new Set();
 
 /* ---------- load / save ---------- */
 
@@ -80,6 +81,30 @@ export function save(immediate = false) {
 }
 
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+
+/**
+ * Fires when *another tab* writes to the database. Without this, scoring the
+ * same match in two tabs lets the older one overwrite the newer one on its next
+ * save, and balls quietly disappear. Here we take the other tab's copy as the
+ * truth and tell the UI to redraw.
+ */
+export function onExternalChange(fn) {
+  externalListeners.add(fn);
+  return () => externalListeners.delete(fn);
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', e => {
+    if (e.key !== KEY || !e.newValue) return;
+    try {
+      db = migrate(JSON.parse(e.newValue));
+      clearTimeout(saveTimer);          // never write our stale copy over theirs
+      externalListeners.forEach(fn => fn(db));
+    } catch (err) {
+      console.warn('[store] could not read the update from another tab', err);
+    }
+  });
+}
 
 /* ---------- teams & players ---------- */
 

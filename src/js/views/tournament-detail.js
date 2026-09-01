@@ -235,7 +235,7 @@ function bracketView(t) {
             const m = f.matchId ? store.match(f.matchId) : null;
             const a = resolveSlot(f.a, t.fixtures, store.match);
             const b = resolveSlot(f.b, t.fixtures, store.match);
-            const winner = m?.result?.winnerId;
+            const winner = m?.result?.winnerId || (m?.result?.tie ? m?.tieBreak?.winnerId : null);
             const side = (id) => `<div class="flex items-center gap-2 px-2.5 py-2 ${winner && winner === id ? 'bg-emerald-500/12' : ''} ${winner && winner !== id ? 'opacity-45' : ''}">
               ${id ? badge(id, 'sm') : '<span class="h-7 w-7 rounded-xl bg-white/5 border border-white/10 grid place-items-center text-slate-600 text-[10px]">?</span>'}
               <span class="flex-1 min-w-0 text-[11px] font-semibold truncate ${id ? 'text-white' : 'text-slate-600'}">${esc(id ? teamName(id) : 'TBD')}</span>
@@ -259,11 +259,12 @@ function champion(t) {
   const finals = (t.fixtures || []).filter(f => f.stage === 'Final');
   const f = finals[finals.length - 1];
   const m = f?.matchId ? store.match(f.matchId) : null;
-  if (!m?.result?.winnerId) return '';
+  const champ = m?.result?.winnerId || (m?.result?.tie ? m?.tieBreak?.winnerId : null);
+  if (!champ) return '';
   return `<div class="card p-6 mt-4 text-center animate-pop">
     <p class="text-4xl">🏆</p>
     <p class="text-[11px] uppercase tracking-widest text-amber-400 font-bold mt-2">Champions</p>
-    <p class="text-xl font-extrabold text-white mt-0.5">${esc(teamName(m.result.winnerId))}</p></div>`;
+    <p class="text-xl font-extrabold text-white mt-0.5">${esc(teamName(champ))}</p></div>`;
 }
 
 /* ------------------------------------------------------------------ *

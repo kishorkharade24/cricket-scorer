@@ -35,5 +35,12 @@ globalThis.localStorage = {
   removeItem: k => mem.delete(k),
   clear: () => mem.clear()
 };
-globalThis.addEventListener = () => {};
+// A real (tiny) window event bus, so listeners registered by modules at import
+// time can actually be exercised — the cross-tab 'storage' handler needs it.
+const winListeners = {};
+globalThis.addEventListener = (type, fn) => { (winListeners[type] ||= []).push(fn); };
+globalThis.removeEventListener = (type, fn) => {
+  winListeners[type] = (winListeners[type] || []).filter(f => f !== fn);
+};
+globalThis.dispatchEvent = ev => { (winListeners[ev.type] || []).forEach(fn => fn(ev)); return true; };
 export const fireDoc = (t, e) => (listeners[t] || []).forEach(fn => fn(e));

@@ -199,6 +199,10 @@ fifties, hundreds, ducks, 3- and 5-wicket hauls, catches, stumpings, run outs).
 | Strike | Batters cross on odd runs and change ends at the end of an over. After a catch the new batter takes strike. |
 | Innings ends | Overs completed, side all out, or the target passed — whichever comes first. Manual close is available for a declaration or rain. |
 | Net run rate | `(runs scored ÷ overs faced) − (runs conceded ÷ overs bowled)`. A side bowled out is charged its **full quota** of overs, per ICC practice. |
+| Short squads | A side of six is all out at five, not ten. The innings closes as soon as an end falls vacant with nobody left to walk in. |
+| Nobody left to bowl | If quotas and the no-consecutive-overs rule between them rule everyone out, the app relaxes one rule rather than stalling, and says on screen which one it had to give up. |
+| Overthrows | 7 to 10 runs off a single ball can be recorded, on their own or on top of a wide or no ball. |
+| Tied matches | Stay a tie for league points, but you can record who went through on a Super Over so a knockout bracket carries on. |
 
 Configurable per match: overs, players per side, overs per bowler, wide and
 no-ball penalty, free hit on/off, and "last man stands".
@@ -261,15 +265,27 @@ Everything is one JSON blob under the `localStorage` key `cricket-scorer.db.v1`.
 ## Tests
 
 ```bash
-npm test                       # 29 assertions on the scoring engine
-node test/views.test.mjs       # 26 — plays full matches, then renders every screen
+npm test                # all three suites (66 assertions)
+npm run test:engine     # 29 — ball accounting, extras, maidens, strike, undo
+npm run test:edge       # 11 — the awkward cases below
+npm run test:views      # 26 — plays full matches, then renders every screen
 ```
 
-The engine tests cover ball accounting, extras, maidens, strike rotation,
-dismissals and credit, innings and match close conditions, results and undo.
-The view tests play complete matches and assert the books balance
-(batting runs + extras = team total; bowler runs + byes = team total;
-balls bowled = balls faced), then render every screen against that data.
+**Engine** covers ball accounting, extras, maidens, strike rotation, dismissals
+and bowler credit, innings and match close conditions, results and undo.
+
+**Edge** covers the things that break real scoring: squads smaller than the
+nominal team size, quotas and the repeat-over rule leaving nobody able to bowl,
+overthrows above six, ties in a knockout, a stumping off a wide, and two browser
+tabs writing to the same database.
+
+**Views** play complete matches and assert the books balance — batting runs +
+extras = team total, bowler runs + byes = team total, balls bowled = balls faced,
+card wickets = wicket count, no bowler over quota or bowling twice in a row —
+then render every screen against that data.
+
+Beyond these, the scoring loop, install, subpath hosting and update flows were
+each driven in a real headless browser during development.
 
 `node test/seed-gen.mjs > demo.json` produces a realistic four-team league you
 can load through **Settings → Import backup** to look around.

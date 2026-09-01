@@ -138,6 +138,12 @@ window.addEventListener('error', e => console.error('[app]', e.error || e.messag
 store.load();
 render();
 
+// Another tab changed the data — redraw so this one is never showing a stale score.
+store.onExternalChange(() => {
+  toast('Updated in another tab', 'info', 2200);
+  render();
+});
+
 /* ---------- PWA ---------- */
 
 registerSW();

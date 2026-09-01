@@ -128,7 +128,8 @@ export function resolveSlot(slot, fixtures, matchById) {
   if (!f || !f.matchId) return null;
   const m = matchById(f.matchId);
   if (!m || m.status !== 'completed' || !m.result) return null;
-  return m.result.winnerId || null;
+  // A tie still sends someone through if a Super Over was recorded.
+  return m.result.winnerId || (m.result.tie ? m.tieBreak?.winnerId : null) || null;
 }
 
 /** Add a knockout stage on top of an existing league table. */

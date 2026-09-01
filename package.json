@@ -12,8 +12,10 @@
     "tunnel": "ngrok http 4173",
     "dev": "node scripts/dev.mjs",
     "release": "npm run css && node scripts/release.mjs",
-    "test": "node test/engine.test.mjs",
-    "test:views": "node test/views.test.mjs"
+    "test": "node test/engine.test.mjs && node test/edge.test.mjs && node test/views.test.mjs",
+    "test:views": "node test/views.test.mjs",
+    "test:engine": "node test/engine.test.mjs",
+    "test:edge": "node test/edge.test.mjs"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.17"
