@@ -19,7 +19,7 @@ export default {
   sub: ctx => {
     const m = store.match(ctx.id);
     if (!m) return '';
-    return `${fmtDate(m.createdAt)}${m.venue ? ' · ' + m.venue : ''} · ${m.overs} ov`;
+    return m.venue || fmtDate(m.createdAt);
   },
   actions: ctx => {
     const m = store.match(ctx.id);
@@ -49,6 +49,7 @@ export default {
         ${fowRow(st)}
         ${partnerships(st)}
         ${overByOver(st)}
+        ${matchDetails(m)}
       </div>`;
   },
 
@@ -276,23 +277,40 @@ document.addEventListener('click', e => {
 
 function header(m, states, res) {
   const t = m.tournamentId ? store.tournament(m.tournamentId) : null;
-  const line = s => `<div class="flex items-center gap-3">
-      ${badge(s.battingTeamId, 'sm')}
-      <span class="flex-1 min-w-0 text-sm font-semibold text-white truncate">${esc(teamName(s.battingTeamId))}</span>
-      <span class="num text-base font-extrabold text-white">${s.runs}/${s.wickets}</span>
-      <span class="num text-[11px] text-slate-500 w-12 text-right">(${s.oversText})</span>
-    </div>`;
+  const decided = !!res && m.status !== 'live';
 
-  const toss = m.toss?.winnerId
-    ? `${teamName(m.toss.winnerId)} won the toss and chose to ${m.toss.decision}`
-    : '';
+  const line = st => {
+    const lost = decided && m.result?.winnerId && m.result.winnerId !== st.battingTeamId;
+    return `<div class="flex items-center gap-3 ${lost ? 'opacity-55' : ''}">
+      ${badge(st.battingTeamId, 'sm')}
+      <span class="flex-1 min-w-0 text-sm font-semibold ${lost ? 'text-slate-400' : 'text-white'} truncate">${esc(teamName(st.battingTeamId))}</span>
+      <span class="num text-lg font-extrabold ${lost ? 'text-slate-400' : 'text-white'}">${st.runs}/${st.wickets}</span>
+      <span class="num text-[11px] text-slate-500 w-11 text-right">${st.oversText}</span>
+    </div>`;
+  };
 
   return `<div class="card p-5 animate-slide-up">
     ${t ? `<a href="#/tournament/${t.id}" class="text-[11px] font-bold text-amber-300">${esc(t.name)}${m.stage ? ' · ' + esc(m.stage) : ''}</a>` : ''}
     <div class="space-y-2.5 ${t ? 'mt-3' : ''}">${states.map(line).join('')}</div>
     ${res ? `<p class="mt-4 pt-3 border-t border-white/[.07] text-sm font-bold ${m.result?.tie ? 'text-amber-300' : 'text-emerald-300'}">${esc(res)}</p>` : ''}
-    ${m.motm ? `<p class="mt-1 text-[11px] text-slate-400">🏅 Player of the match — <b class="text-white">${esc(nameOf(m.motm))}</b></p>` : ''}
-    ${toss ? `<p class="mt-1 text-[11px] text-slate-600">${esc(toss)}</p>` : ''}
+    ${m.motm ? `<p class="mt-1.5 text-[11px] text-slate-400">🏅 ${esc(nameOf(m.motm))}</p>` : ''}
+  </div>`;
+}
+
+/** The incidental facts, kept out of the way at the foot of the card. */
+function matchDetails(m) {
+  const bits = [];
+  if (m.toss?.winnerId) bits.push(`${teamName(m.toss.winnerId)} won the toss and chose to ${m.toss.decision}`);
+  if (m.venue) bits.push(m.venue);
+  bits.push(`${m.overs} overs a side`);
+  if (m.rules?.noLbw) bits.push('no LBW');
+  if (m.rules?.retireAt) bits.push(`retire on ${m.rules.retireAt}`);
+  if (m.rules?.zones?.length) bits.push(`${m.rules.zones.length} fixed-run zone${m.rules.zones.length === 1 ? '' : 's'}`);
+  if (!bits.length) return '';
+  return `<div class="card p-4">
+    <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Match details</h3>
+    <p class="text-[11px] text-slate-500 leading-relaxed">${esc(bits.join('  ·  '))}</p>
+    <p class="mt-1 text-[11px] text-slate-600">${esc(fmtDate(m.createdAt))}</p>
   </div>`;
 }
 

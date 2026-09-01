@@ -182,6 +182,13 @@ service worker requires.
 - Retire a batter, award penalty runs, swap the strike, change bowler mid-over,
   declare an innings closed, or abandon the match.
 
+### Reading results
+The results list is deliberately plain: two teams, two scores, who won. The
+competition name is a heading over the group rather than a line on every card,
+anything being scored right now sorts to the top, and the winning side is the
+one that is not dimmed. Toss, venue and the rules a match was played under sit
+at the foot of its scorecard, out of the way.
+
 ### Sharing
 Any scorecard can go out as a **picture** — 1080px wide, drawn on a canvas with
 no library, sized so WhatsApp will not crop it badly. Scores, the result, top

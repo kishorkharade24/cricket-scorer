@@ -71,43 +71,51 @@ export function scoreLine(st) {
   return `${st.runs}/${st.wickets} <span class="text-slate-500 font-medium">(${st.oversText})</span>`;
 }
 
-/** Compact match card used on Home, Matches and Tournament screens. */
+/**
+ * A result is three facts: who played, what they made, who won. Everything
+ * else on this card was chrome — a "Result" badge saying what the sentence
+ * below already said, and the tournament name repeated on every row. Pass
+ * `showTournament:false` where a section header already names it.
+ */
 export function matchCard(m, { showTournament = true } = {}) {
   const states = statesOf(m);
   const live = m.status === 'live';
   const res = m.result || computeResult(m, states);
   const t = m.tournamentId ? store.tournament(m.tournamentId) : null;
+  const decided = !!res && !live;
 
-  const row = (teamId, st) => {
-    const isWinner = res?.winnerId === teamId;
-    return `<div class="flex items-center gap-3 ${!isWinner && res && !res.tie ? 'opacity-60' : ''}">
+  const row = teamId => {
+    const st = states.find(s => s.battingTeamId === teamId) || null;
+    const lost = decided && res.winnerId && res.winnerId !== teamId;
+    return `<div class="flex items-center gap-2.5 ${lost ? 'opacity-50' : ''}">
       ${badge(teamId, 'sm')}
-      <span class="flex-1 min-w-0 truncate text-sm font-semibold ${isWinner ? 'text-white' : 'text-slate-300'}">${esc(teamName(teamId))}</span>
-      <span class="num text-sm font-bold text-white">${st ? `${st.runs}/${st.wickets}` : '<span class="text-slate-600">—</span>'}</span>
-      <span class="num text-[11px] text-slate-500 w-10 text-right">${st ? `(${st.oversText})` : ''}</span>
+      <span class="flex-1 min-w-0 truncate text-[13px] font-semibold ${lost ? 'text-slate-400' : 'text-white'}">${esc(teamName(teamId))}</span>
+      <span class="num text-[15px] font-bold ${lost ? 'text-slate-400' : 'text-white'}">${st ? `${st.runs}/${st.wickets}` : '<span class="text-slate-600">—</span>'}</span>
+      <span class="num text-[11px] text-slate-500 w-11 text-right">${st ? st.oversText : ''}</span>
     </div>`;
   };
 
-  const stOf = teamId => states.find(s => s.battingTeamId === teamId) || null;
+  // The short name and no balls-left clause: on a phone the full sentence wraps
+  // onto a second line, which is most of what made a list of results look busy.
   const summary = live
     ? liveSummary(m, states)
-    : (resultText(m, states, teamName) || 'Not started');
+    : (resultText(m, states, id => store.team(id)?.name?.split(' ')[0] || 'Team', { brief: true }) || 'Not started');
 
   return `<a href="#/${live ? 'score' : 'scorecard'}/${m.id}" class="card-h block p-4 animate-slide-up">
-    <div class="flex items-center justify-between gap-2 mb-3">
-      <div class="flex items-center gap-2 min-w-0">
-        ${live ? livePill() : pill(m.isSuperOver ? (m.stage || 'Super Over') : (m.status === 'completed' ? 'Result' : 'Setup'),
-            m.isSuperOver ? 'bg-amber-500/15 text-amber-300' : 'bg-white/8 text-slate-400')}
-        ${showTournament && t ? `<span class="text-[11px] text-slate-500 truncate">${esc(t.name)}${m.stage ? ' · ' + esc(m.stage) : ''}</span>` : ''}
-      </div>
-      <span class="text-[11px] text-slate-600 shrink-0">${esc(relTime(m.updatedAt || m.createdAt))}</span>
-    </div>
+    ${live || m.isSuperOver || (showTournament && t) ? `<div class="flex items-center gap-2 mb-2.5">
+      ${live ? livePill() : ''}
+      ${m.isSuperOver ? pill(m.stage || 'Super Over', 'bg-amber-500/15 text-amber-300') : ''}
+      ${showTournament && t ? `<span class="text-[11px] text-slate-500 truncate">${esc(t.name)}</span>` : ''}
+    </div>` : ''}
     <div class="space-y-2">
-      ${row(m.teams[0], stOf(m.teams[0]))}
-      ${row(m.teams[1], stOf(m.teams[1]))}
+      ${row(m.teams[0])}
+      ${row(m.teams[1])}
     </div>
-    <p class="mt-3 pt-3 border-t border-white/[.06] text-[12px] font-semibold ${live ? 'text-emerald-300' : res?.tie ? 'text-amber-300' : 'text-slate-400'}">
-      ${esc(summary)}</p>
+    <div class="mt-2.5 pt-2.5 border-t border-white/[.06] flex items-baseline gap-3">
+      <p class="flex-1 min-w-0 text-[12px] font-semibold ${live ? 'text-emerald-300' : res?.tie ? 'text-amber-300' : 'text-slate-300'}">
+        ${esc(summary)}</p>
+      <span class="shrink-0 text-[10px] text-slate-600">${esc(relTime(m.updatedAt || m.createdAt))}</span>
+    </div>
   </a>`;
 }
 

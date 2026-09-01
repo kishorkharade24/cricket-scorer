@@ -28,6 +28,9 @@
     --c-glow-alpha: .16;
     --c-scrim: 0 0 0;
     --c-scrim-alpha: .70;
+    --c-chrome: 17 25 40;        /* the bars: a step up from the page */
+    --c-chrome-edge: 255 255 255;
+    --c-chrome-edge-alpha: .10;
   }
 
   html[data-theme='light'] {
@@ -49,6 +52,9 @@
     --c-glow-alpha: .10;
     --c-scrim: 15 23 42;
     --c-scrim-alpha: .45;
+    --c-chrome: 255 255 255;
+    --c-chrome-edge: 15 23 42;
+    --c-chrome-edge-alpha: .12;
   }
   html { -webkit-text-size-adjust: 100%; }
   body {
@@ -100,6 +106,25 @@
   .tbl td:first-child { @apply text-left; }
   .runbtn { @apply relative rounded-2xl font-bold num flex items-center justify-center transition-all duration-150 active:scale-90 border select-none; }
   html[data-theme='light'] .nav-item.active { @apply text-emerald-600; }
+  /* The top and bottom bars are chrome, not page. They need to read as a
+     surface content passes *behind* — at the page colour they look like they
+     have come unstuck when a card scrolls under them. */
+  .chrome {
+    background-color: rgb(var(--c-chrome) / .93);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+  .chrome-top {
+    border-bottom: 1px solid rgb(var(--c-chrome-edge) / var(--c-chrome-edge-alpha));
+    box-shadow: 0 6px 20px -12px rgba(0, 0, 0, .65);
+  }
+  .chrome-bottom {
+    border-top: 1px solid rgb(var(--c-chrome-edge) / var(--c-chrome-edge-alpha));
+    box-shadow: 0 -8px 24px -12px rgba(0, 0, 0, .7);
+  }
+  html[data-theme='light'] .chrome-top { box-shadow: 0 6px 18px -14px rgba(15, 23, 42, .5); }
+  html[data-theme='light'] .chrome-bottom { box-shadow: 0 -8px 22px -14px rgba(15, 23, 42, .5); }
+
   .nav-item { @apply flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-semibold text-slate-500 transition-colors hover:text-slate-300; }
   .nav-item svg { @apply h-[19px] w-[19px]; }
   .nav-item.active { @apply text-emerald-400; }

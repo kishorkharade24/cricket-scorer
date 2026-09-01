@@ -582,7 +582,12 @@ export function advancingTeam(match) {
   return null;
 }
 
-export function resultText(match, innings, nameOf) {
+/**
+ * @param {object} [opts]
+ * @param {boolean} [opts.brief] drop the trailing detail, for narrow cards
+ *   where "(16 balls left)" is what pushes the line onto a second row.
+ */
+export function resultText(match, innings, nameOf, opts = {}) {
   const r = match.result || computeResult(match, innings);
   if (!r) return null;
   if (r.abandoned) return 'Match abandoned';
@@ -593,7 +598,7 @@ export function resultText(match, innings, nameOf) {
   }
   if (r.type === 'wickets') {
     return `${nameOf(r.winnerId)} won by ${r.margin} wicket${r.margin === 1 ? '' : 's'}` +
-           (r.ballsLeft ? ` (${r.ballsLeft} ball${r.ballsLeft === 1 ? '' : 's'} left)` : '');
+           (!opts.brief && r.ballsLeft ? ` (${r.ballsLeft} ball${r.ballsLeft === 1 ? '' : 's'} left)` : '');
   }
   return `${nameOf(r.winnerId)} won by ${r.margin} run${r.margin === 1 ? '' : 's'}`;
 }
