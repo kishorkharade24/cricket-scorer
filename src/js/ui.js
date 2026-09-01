@@ -144,7 +144,7 @@ export function segmented(name, options, activeValue) {
   return `<div class="inline-flex rounded-xl bg-white/5 border border-white/10 p-1 gap-1">
     ${options.map(o => `<button type="button" data-seg="${esc(name)}" data-value="${esc(o.value)}"
       class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${o.value === activeValue
-        ? 'bg-emerald-500 text-ink-950 shadow' : 'text-slate-400 hover:text-slate-200'}">${esc(o.label)}</button>`).join('')}
+        ? 'bg-emerald-500 text-onaccent shadow' : 'text-slate-400 hover:text-slate-200'}">${esc(o.label)}</button>`).join('')}
   </div>`;
 }
 

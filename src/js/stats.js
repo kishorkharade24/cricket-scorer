@@ -19,7 +19,7 @@ function blankAgg(id) {
     id,
     mat: 0, inns: 0, no: 0, runs: 0, balls: 0, f4: 0, f6: 0, hs: 0, hsNo: false,
     fifties: 0, hundreds: 0, ducks: 0,
-    bInns: 0, bBalls: 0, bRuns: 0, wkts: 0, maidens: 0, bbW: 0, bbR: 0,
+    bInns: 0, bBalls: 0, bRuns: 0, wkts: 0, maidens: 0, bbW: null, bbR: 0,
     threeFers: 0, fiveFers: 0,
     catches: 0, runouts: 0, stumpings: 0,
     won: 0, lost: 0
@@ -51,7 +51,7 @@ export function aggregate(matches, filter = () => true) {
         if (!b.out) a.no++;
         if (b.r > a.hs || (b.r === a.hs && !b.out && !a.hsNo)) { a.hs = b.r; a.hsNo = !b.out; }
         if (b.r >= 100) a.hundreds++; else if (b.r >= 50) a.fifties++;
-        if (b.r === 0 && b.out && b.b > 0) a.ducks++;
+        if (b.r === 0 && b.out) a.ducks++;   // a duck is being out for nought, balls faced or not
       }
       // bowling
       for (const id of st.bowlOrder) {
@@ -59,7 +59,9 @@ export function aggregate(matches, filter = () => true) {
         const a = get(id); played.add(id);
         a.bInns++;
         a.bBalls += w.balls; a.bRuns += w.runs; a.wkts += w.wkts; a.maidens += w.maidens;
-        if (w.wkts > a.bbW || (w.wkts === a.bbW && w.wkts > 0 && w.runs < a.bbR)) { a.bbW = w.wkts; a.bbR = w.runs; }
+        if (w.balls > 0 || w.runs > 0) {
+          if (a.bbW === null || w.wkts > a.bbW || (w.wkts === a.bbW && w.runs < a.bbR)) { a.bbW = w.wkts; a.bbR = w.runs; }
+        }
         if (w.wkts >= 5) a.fiveFers++; else if (w.wkts >= 3) a.threeFers++;
       }
       // fielding
@@ -94,7 +96,7 @@ export function aggregate(matches, filter = () => true) {
     a.econ = a.bBalls ? (a.bRuns * 6) / a.bBalls : null;
     a.bowlAvg = a.wkts ? a.bRuns / a.wkts : null;
     a.bowlSr = a.wkts ? a.bBalls / a.wkts : null;
-    a.bb = a.bbW || a.bbR ? `${a.bbW}/${a.bbR}` : '-';
+    a.bb = a.bbW === null ? '-' : `${a.bbW}/${a.bbR}`;
     a.dismissals = a.catches + a.stumpings + a.runouts;
   }
   return out;

@@ -3,17 +3,65 @@
 @tailwind utilities;
 
 @layer base {
-  :root { --vvh: 100vh; }
+  /* Dark is the default: this is a scoring app that lives outdoors and in
+     evening light. Light mode is a straight remap of the same tokens. */
+  :root {
+    --vvh: 100vh;
+    --c-fg: 255 255 255;        /* overlays and strong text */
+    --c-on-accent: 5 8 15;      /* text sitting on an accent colour */
+    --c-bg-950: 5 8 15;
+    --c-bg-900: 10 16 28;
+    --c-bg-850: 15 23 42;
+    --c-bg-800: 20 29 51;
+    --c-t100: 241 245 249;
+    --c-t200: 226 232 240;
+    --c-t300: 203 213 225;
+    --c-t400: 148 163 184;
+    --c-t500: 100 116 139;
+    --c-t600: 71 85 105;
+    --c-t700: 51 65 85;
+    --c-t800: 30 41 59;
+    --c-t900: 15 23 42;
+    --c-glow-a: 16 185 129;
+    --c-glow-b: 56 189 248;
+    --c-glow-c: 139 92 246;
+    --c-glow-alpha: .16;
+    --c-scrim: 0 0 0;
+    --c-scrim-alpha: .70;
+  }
+
+  html[data-theme='light'] {
+    --c-fg: 15 23 42;           /* overlays become faint grey washes */
+    --c-on-accent: 5 8 15;      /* dark text still reads best on emerald/amber */
+    --c-bg-950: 241 245 249;    /* page */
+    --c-bg-900: 255 255 255;    /* sheets, inputs */
+    --c-bg-850: 248 250 252;
+    --c-bg-800: 226 232 240;
+    --c-t100: 2 6 23;           /* the text ramp inverts */
+    --c-t200: 15 23 42;
+    --c-t300: 30 41 59;
+    --c-t400: 71 85 105;
+    --c-t500: 100 116 139;
+    --c-t600: 120 134 153;
+    --c-t700: 148 163 184;
+    --c-t800: 203 213 225;
+    --c-t900: 226 232 240;
+    --c-glow-alpha: .10;
+    --c-scrim: 15 23 42;
+    --c-scrim-alpha: .45;
+  }
   html { -webkit-text-size-adjust: 100%; }
   body {
     @apply bg-ink-950 text-slate-200 font-sans antialiased;
     background-image:
-      radial-gradient(1100px 620px at 12% -10%, rgba(16,185,129,.16), transparent 60%),
-      radial-gradient(900px 520px at 96% 4%, rgba(56,189,248,.13), transparent 58%),
-      radial-gradient(800px 500px at 50% 108%, rgba(139,92,246,.12), transparent 62%);
+      radial-gradient(1100px 620px at 12% -10%, rgb(var(--c-glow-a) / var(--c-glow-alpha)), transparent 60%),
+      radial-gradient(900px 520px at 96% 4%, rgb(var(--c-glow-b) / var(--c-glow-alpha)), transparent 58%),
+      radial-gradient(800px 500px at 50% 108%, rgb(var(--c-glow-c) / var(--c-glow-alpha)), transparent 62%);
     background-attachment: fixed;
     overscroll-behavior-y: none;
+    color-scheme: dark;
   }
+  html[data-theme='light'] body { color-scheme: light; }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-thumb { @apply bg-white/10 rounded-full; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -24,9 +72,19 @@
 
 @layer components {
   .card { @apply rounded-2xl bg-white/[.045] border border-white/10 backdrop-blur-xl shadow-glow; }
+
+  /* On a light page a translucent dark wash reads as a hole, not a raised card,
+     so the few surfaces that carry elevation get an explicit light treatment. */
+  html[data-theme='light'] .card,
+  html[data-theme='light'] .card-h { @apply bg-pure border-slate-900/[.08];
+    box-shadow: 0 1px 2px rgb(15 23 42 / .04), 0 10px 30px -18px rgb(15 23 42 / .25); }
+  html[data-theme='light'] .card-h:hover { @apply bg-pure border-slate-900/20; }
+  html[data-theme='light'] .field { @apply bg-pure border-slate-900/[.12]; }
+  html[data-theme='light'] .btn-ghost { @apply bg-pure border-slate-900/[.10]; }
+  html[data-theme='light'] .btn-ghost:hover { @apply bg-slate-900/[.04]; }
   .card-h { @apply card transition-all duration-200 hover:bg-white/[.075] hover:border-white/20 active:scale-[.985]; }
   .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150 active:scale-95 disabled:opacity-35 disabled:pointer-events-none select-none; }
-  .btn-primary { @apply btn bg-emerald-500 text-ink-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20; }
+  .btn-primary { @apply btn bg-emerald-500 text-onaccent hover:bg-emerald-400 shadow-lg shadow-emerald-500/20; }
   .btn-ghost { @apply btn bg-white/5 text-slate-200 border border-white/10 hover:bg-white/10; }
   .btn-danger { @apply btn bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25; }
   .btn-chip { @apply btn rounded-full px-3 py-1.5 text-xs bg-white/5 border border-white/10 hover:bg-white/10; }
@@ -41,10 +99,66 @@
   .tbl td:first-child { @apply text-left whitespace-normal; }
   .tbl td:first-child { @apply text-left; }
   .runbtn { @apply relative rounded-2xl font-bold num flex items-center justify-center transition-all duration-150 active:scale-90 border select-none; }
+  html[data-theme='light'] .nav-item.active { @apply text-emerald-600; }
   .nav-item { @apply flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-semibold text-slate-500 transition-colors hover:text-slate-300; }
   .nav-item svg { @apply h-[19px] w-[19px]; }
   .nav-item.active { @apply text-emerald-400; }
   .safe-b { padding-bottom: env(safe-area-inset-bottom, 0px); }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+@layer utilities {
+/* Accent text in light mode.
+   text-sky-300 and friends are chosen to sit on a dark surface; on a pale
+   tint they vanish. Each one is remapped to the readable shade of the same
+   hue. Generated — run scripts/gen-light-accents.mjs after adding a hue. */
+html[data-theme='light'] .text-emerald-100{color:#064e3b}
+html[data-theme='light'] .text-emerald-200{color:#065f46}
+html[data-theme='light'] .text-emerald-300{color:#047857}
+html[data-theme='light'] .text-emerald-400{color:#059669}
+html[data-theme='light'] .text-sky-100{color:#0c4a6e}
+html[data-theme='light'] .text-sky-200{color:#075985}
+html[data-theme='light'] .text-sky-300{color:#0369a1}
+html[data-theme='light'] .text-sky-400{color:#0284c7}
+html[data-theme='light'] .text-violet-100{color:#4c1d95}
+html[data-theme='light'] .text-violet-200{color:#5b21b6}
+html[data-theme='light'] .text-violet-300{color:#6d28d9}
+html[data-theme='light'] .text-violet-400{color:#7c3aed}
+html[data-theme='light'] .text-amber-100{color:#78350f}
+html[data-theme='light'] .text-amber-200{color:#92400e}
+html[data-theme='light'] .text-amber-300{color:#b45309}
+html[data-theme='light'] .text-amber-400{color:#d97706}
+html[data-theme='light'] .text-rose-100{color:#881337}
+html[data-theme='light'] .text-rose-200{color:#9f1239}
+html[data-theme='light'] .text-rose-300{color:#be123c}
+html[data-theme='light'] .text-rose-400{color:#e11d48}
+html[data-theme='light'] .text-teal-100{color:#134e4a}
+html[data-theme='light'] .text-teal-200{color:#115e59}
+html[data-theme='light'] .text-teal-300{color:#0f766e}
+html[data-theme='light'] .text-teal-400{color:#0d9488}
+html[data-theme='light'] .text-orange-100{color:#7c2d12}
+html[data-theme='light'] .text-orange-200{color:#9a3412}
+html[data-theme='light'] .text-orange-300{color:#c2410c}
+html[data-theme='light'] .text-orange-400{color:#ea580c}
+html[data-theme='light'] .text-fuchsia-100{color:#701a75}
+html[data-theme='light'] .text-fuchsia-200{color:#86198f}
+html[data-theme='light'] .text-fuchsia-300{color:#a21caf}
+html[data-theme='light'] .text-fuchsia-400{color:#c026d3}
+html[data-theme='light'] .text-lime-100{color:#365314}
+html[data-theme='light'] .text-lime-200{color:#3f6212}
+html[data-theme='light'] .text-lime-300{color:#4d7c0f}
+html[data-theme='light'] .text-lime-400{color:#65a30d}
+html[data-theme='light'] .text-cyan-100{color:#164e63}
+html[data-theme='light'] .text-cyan-200{color:#155e75}
+html[data-theme='light'] .text-cyan-300{color:#0e7490}
+html[data-theme='light'] .text-cyan-400{color:#0891b2}
+html[data-theme='light'] .text-indigo-100{color:#312e81}
+html[data-theme='light'] .text-indigo-200{color:#3730a3}
+html[data-theme='light'] .text-indigo-300{color:#4338ca}
+html[data-theme='light'] .text-indigo-400{color:#4f46e5}
+html[data-theme='light'] .text-pink-100{color:#831843}
+html[data-theme='light'] .text-pink-200{color:#9d174d}
+html[data-theme='light'] .text-pink-300{color:#be185d}
+html[data-theme='light'] .text-pink-400{color:#db2777}
 }

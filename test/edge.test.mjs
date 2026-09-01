@@ -137,5 +137,84 @@ t('a corrupt payload from another tab does not wipe the database', () => {
   assert.equal(store.teams().length, before);
 });
 
+console.log('\nG. Stats for a player who bats and bowls');
+const stats = await import('../src/js/stats.js');
+t('a bowler who took no wickets still has bowling figures', () => {
+  const m = mk({ overs: 2, pps: 2, batN: 2, bowlN: 2, mopb: 2 });
+  for (let i = 0; i < 6; i++) ball(m, { r: 1 });      // b1 bowls an over, no wickets
+  const agg = stats.aggregate([m]);
+  const b1 = agg.get('b1');
+  assert.ok(b1, 'b1 has no aggregate at all');
+  assert.equal(b1.bBalls, 6);
+  assert.equal(b1.bRuns, 6);
+  assert.equal(b1.wkts, 0);
+  assert.ok(b1.econ !== null, 'economy should be computable');
+});
+t('the Bowling tab lists everyone who bowled, not just wicket-takers', async () => {
+  const m = mk({ overs: 2, pps: 2, batN: 2, bowlN: 2, mopb: 2 });
+  for (let i = 0; i < 6; i++) ball(m, { r: 1 });
+  const agg = [...stats.aggregate([m]).values()];
+  const bowled = agg.filter(a => a.bBalls > 0);
+  const wicketTakers = agg.filter(a => a.wkts > 0);
+  assert.equal(bowled.length, 1, 'one player bowled');
+  assert.equal(wicketTakers.length, 0, 'nobody took a wicket');
+  // this is what the view must use — filtering on wkts would hide the bowler
+  assert.notEqual(bowled.length, wicketTakers.length);
+});
+
+t('a bowler named for an over that never happened is left off the card', () => {
+  const m = mk({ overs: 2, pps: 2, batN: 2, bowlN: 3, mopb: 2 });
+  for (let i = 0; i < 6; i++) ball(m, { r: 1 });
+  E.push(m, { t: 'bowl', id: 'b2' });          // named, then the innings is closed
+  E.push(m, { t: 'end', reason: 'manual' });
+  const rows = E.bowlingRows(E.computeInnings(m, 0), id => id);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].id, 'b1');
+});
+t('a bowler who has only sent down wides still appears', () => {
+  const m = mk({ overs: 2, pps: 2, batN: 2, bowlN: 3, mopb: 2 });
+  ball(m, { wd: true }); ball(m, { wd: true });
+  const rows = E.bowlingRows(E.computeInnings(m, 0), id => id);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].r, 2);
+});
+t('best bowling shows a wicketless spell rather than a dash', () => {
+  const m = mk({ overs: 2, pps: 2, batN: 2, bowlN: 2, mopb: 2 });
+  for (let i = 0; i < 6; i++) ball(m, { r: 2 });
+  const a = stats.aggregate([m]).get('b1');
+  assert.equal(a.bb, '0/12');
+});
+t('a batter run out without facing a ball still counts as a duck', () => {
+  const m = mk({ overs: 2, pps: 4, batN: 4 });
+  E.push(m, { t: 'ball', r: 0, w: { type: 'runout', batter: 'a2' } });
+  E.autoAdvance(m);
+  const a = stats.aggregate([m]).get('a2');
+  assert.equal(a.ducks, 1);
+});
+
+console.log('\nH. Uneven sides (turf cricket)');
+t('a nine-a-side team is all out at eight, in an eleven-a-side match', () => {
+  const m = E.newMatch({
+    teamA: 'A', teamB: 'B', overs: 20, playersPerSide: 11, maxOversPerBowler: 4,
+    xi: { A: xi('a', 9), B: xi('b', 11) },
+    toss: { winnerId: 'A', decision: 'bat' }
+  });
+  E.push(m, { t: 'bat', id: 'a1' }); E.push(m, { t: 'bat', id: 'a2' }); E.push(m, { t: 'bowl', id: 'b1' });
+  const st = E.computeInnings(m, 0);
+  assert.equal(st.sideSize, 9);
+  assert.equal(st.wicketsLeft, 8);
+});
+t('the other side keeps its own, larger size', () => {
+  const m = E.newMatch({
+    teamA: 'A', teamB: 'B', overs: 20, playersPerSide: 11, maxOversPerBowler: 4,
+    xi: { A: xi('a', 9), B: xi('b', 11) },
+    toss: { winnerId: 'A', decision: 'bowl' }      // B bats first
+  });
+  E.push(m, { t: 'bat', id: 'b1' }); E.push(m, { t: 'bat', id: 'b2' }); E.push(m, { t: 'bowl', id: 'a1' });
+  const st = E.computeInnings(m, 0);
+  assert.equal(st.sideSize, 11);
+  assert.equal(st.wicketsLeft, 10);
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

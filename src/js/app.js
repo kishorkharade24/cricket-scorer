@@ -4,6 +4,7 @@ import { $, $$, toast, closeSheet, sheetOpen } from './util.js';
 import * as store from './store.js';
 import { registerSW } from './pwa.js';
 import { CREDIT } from './ui.js';
+import * as theme from './theme.js';
 
 import home        from './views/home.js';
 import teams       from './views/teams.js';
@@ -99,6 +100,9 @@ export function render() {
   const bb = $('#backBtn');
   bb.classList.toggle('hidden', !backTo);
   bb.onclick = () => (backTo === true ? back() : go(backTo));
+  // The mark takes the back arrow's place on the top-level screens, so the
+  // header never shows both and the title never shifts around.
+  $('#brandLogo').classList.toggle('hidden', !!backTo);
 
   const hideNav = val(current.hideNav, ctx);
   $('#nav').classList.toggle('hidden', !!hideNav);
@@ -136,6 +140,8 @@ window.addEventListener('hashchange', () => { if (sheetOpen()) closeSheet('__dis
 window.addEventListener('error', e => console.error('[app]', e.error || e.message));
 
 store.load();
+theme.apply();
+theme.watchSystem(() => render());
 render();
 
 // Another tab changed the data — redraw so this one is never showing a stale score.

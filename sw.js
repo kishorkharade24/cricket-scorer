@@ -19,6 +19,7 @@ const SHELL = [
   './src/js/fixtures.js',
   './src/js/ui.js',
   './src/js/pwa.js',
+  './src/js/theme.js',
   './src/js/views/home.js',
   './src/js/views/matches.js',
   './src/js/views/teams.js',
@@ -62,11 +63,18 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;   // nothing external is used
 
-  // Navigations always resolve to the app shell, so deep links work offline.
+  // Navigations resolve to the app shell so deep links work offline — but the
+  // shell is refreshed in the background as well. Serving it from cache and
+  // never re-checking would freeze index.html on whatever shipped first.
   if (req.mode === 'navigate') {
     e.respondWith((async () => {
       const cache = await caches.open(CACHE);
-      return (await cache.match('./index.html')) || (await cache.match('./')) || fetch(req);
+      const shell = await cache.match('./index.html');
+      const fresh = fetch('./index.html', { cache: 'no-cache' })
+        .then(res => { if (res && res.ok) cache.put('./index.html', res.clone()); return res; })
+        .catch(() => null);
+      if (shell) { e.waitUntil(fresh); return shell; }
+      return (await fresh) || (await cache.match('./')) || fetch(req);
     })());
     return;
   }

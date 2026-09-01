@@ -44,9 +44,17 @@ export default {
     const agg = [...aggregate(all).values()];
     const lb = leaderboards(all);
     const sortKey = tab === 'batting' ? 'runs' : tab === 'bowling' ? 'wkts' : 'dismissals';
-    let rows = agg.filter(a => a[sortKey] > 0 || (tab === 'batting' && a.inns));
+    // Include everyone who took part in that discipline, not only those with a
+    // number on the board — a bowler with 4-0-30-0 still bowled.
+    const took = tab === 'batting' ? a => a.inns > 0
+               : tab === 'bowling' ? a => a.bBalls > 0
+               : a => a.mat > 0;
+    let rows = agg.filter(took);
     if (q) rows = rows.filter(a => nameOf(a.id).toLowerCase().includes(q.toLowerCase()));
-    rows = sortBy(rows, '-' + sortKey);
+    // Secondary sort keeps wicketless bowlers in a sensible order (cheapest first).
+    rows = tab === 'bowling'
+      ? [...rows].sort((a, b) => b.wkts - a.wkts || (a.econ ?? 99) - (b.econ ?? 99) || b.bBalls - a.bBalls)
+      : sortBy(rows, '-' + sortKey);
 
     return `
       ${topCards(lb)}

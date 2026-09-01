@@ -16,6 +16,7 @@ function empty() {
     matches: [],      // see engine.js newMatch()
     tournaments: [],  // { id, name, format, teamIds, overs, ..., fixtures:[matchId|placeholder] }
     settings: {
+      theme: 'dark',
       defaultOvers: 20,
       defaultPlayers: 11,
       celebrate: true,

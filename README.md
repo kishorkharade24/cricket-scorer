@@ -179,6 +179,10 @@ partnership bars and an over-by-over ball map.
 - Add semi-finals and a final from the top of the table once the league is done.
 - Orange cap / purple cap and five more leaderboards.
 
+### Appearance
+Dark by default, with a light theme and a "follow the system" option. The theme
+is applied before the first paint, so there is no flash of the wrong one.
+
 ### Stats
 Career batting, bowling and fielding aggregates across every match on the device,
 searchable, with a per-player record sheet (average, strike rate, best figures,
@@ -202,6 +206,7 @@ fifties, hundreds, ducks, 3- and 5-wicket hauls, catches, stumpings, run outs).
 | Short squads | A side of six is all out at five, not ten. The innings closes as soon as an end falls vacant with nobody left to walk in. |
 | Nobody left to bowl | If quotas and the no-consecutive-overs rule between them rule everyone out, the app relaxes one rule rather than stalling, and says on screen which one it had to give up. |
 | Overthrows | 7 to 10 runs off a single ball can be recorded, on their own or on top of a wide or no ball. |
+| Uneven sides | Each team is all out one short of **its own** size. Nine against eleven is fine — the nine-a-side team is all out at eight. |
 | Tied matches | Stay a tie for league points, but you can record who went through on a Super Over so a knockout bracket carries on. |
 
 Configurable per match: overs, players per side, overs per bowler, wide and

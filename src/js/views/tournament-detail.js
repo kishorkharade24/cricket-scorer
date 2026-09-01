@@ -196,7 +196,7 @@ function tableView(t) {
               <div class="min-w-0">
                 <span class="block font-semibold text-white truncate leading-tight">${esc(teamName(r.teamId))}</span>
                 ${r.form.length ? `<span class="flex gap-0.5 mt-1">${r.form.map(f => `<span class="h-3.5 w-3.5 rounded-[3px] text-[8px] font-bold grid place-items-center ${
-                  f === 'W' ? 'bg-emerald-500 text-ink-950' : f === 'L' ? 'bg-rose-500/70 text-white' : 'bg-white/15 text-slate-300'}">${f}</span>`).join('')}</span>` : ''}
+                  f === 'W' ? 'bg-emerald-500 text-onaccent' : f === 'L' ? 'bg-rose-500/70 text-white' : 'bg-white/15 text-slate-300'}">${f}</span>`).join('')}</span>` : ''}
               </div>
             </div></td>
           <td>${r.p}</td><td class="text-emerald-300 font-semibold">${r.w}</td><td>${r.l}</td>

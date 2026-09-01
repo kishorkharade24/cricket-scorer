@@ -95,8 +95,8 @@ export function toast(msg, kind = 'info', ms = 2600) {
   }
   const tone = {
     info:  'bg-ink-850/95 border-white/15 text-slate-100',
-    ok:    'bg-emerald-500/95 border-emerald-300/40 text-ink-950',
-    warn:  'bg-amber-500/95 border-amber-300/40 text-ink-950',
+    ok:    'bg-emerald-500/95 border-emerald-300/40 text-onaccent',
+    warn:  'bg-amber-500/95 border-amber-300/40 text-onaccent',
     error: 'bg-rose-500/95 border-rose-300/40 text-white'
   }[kind] || 'bg-ink-850/95 border-white/15';
   const n = document.createElement('div');

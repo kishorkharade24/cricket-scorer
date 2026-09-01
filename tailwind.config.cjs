@@ -8,7 +8,30 @@ module.exports = {
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace']
       },
       colors: {
-        ink:    { 950: '#05080f', 900: '#0a101c', 850: '#0f172a', 800: '#141d33' },
+        // Every colour the app paints with resolves through a CSS variable, so
+        // one attribute on <html> flips the whole thing between dark and light.
+        // "white" is really "the overlay/foreground colour" — bg-white/5 is a
+        // pale wash on dark, and a faint grey wash on light.
+        white: 'rgb(var(--c-fg) / <alpha-value>)',
+        pure:  '#ffffff',
+        onaccent: 'rgb(var(--c-on-accent) / <alpha-value>)',
+        ink: {
+          950: 'rgb(var(--c-bg-950) / <alpha-value>)',
+          900: 'rgb(var(--c-bg-900) / <alpha-value>)',
+          850: 'rgb(var(--c-bg-850) / <alpha-value>)',
+          800: 'rgb(var(--c-bg-800) / <alpha-value>)'
+        },
+        slate: {
+          100: 'rgb(var(--c-t100) / <alpha-value>)',
+          200: 'rgb(var(--c-t200) / <alpha-value>)',
+          300: 'rgb(var(--c-t300) / <alpha-value>)',
+          400: 'rgb(var(--c-t400) / <alpha-value>)',
+          500: 'rgb(var(--c-t500) / <alpha-value>)',
+          600: 'rgb(var(--c-t600) / <alpha-value>)',
+          700: 'rgb(var(--c-t700) / <alpha-value>)',
+          800: 'rgb(var(--c-t800) / <alpha-value>)',
+          900: 'rgb(var(--c-t900) / <alpha-value>)'
+        },
         turf:   { 400: '#4ade80', 500: '#22c55e', 600: '#16a34a' },
         ball:   { 400: '#fb7185', 500: '#f43f5e', 600: '#e11d48' }
       },

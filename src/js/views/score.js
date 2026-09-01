@@ -85,7 +85,7 @@ function scoreboard(m, st, first) {
       <div class="flex items-center gap-2 mb-3">
         ${m.status === 'live' ? livePill() : `<span class="pill bg-white/8 text-slate-400">Result</span>`}
         <span class="text-[11px] text-slate-400 truncate">${esc(teamName(st.battingTeamId))} ${m.innings.length > 1 ? '(2nd inns)' : '(1st inns)'}</span>
-        ${st.freeHit ? `<span class="pill bg-amber-400 text-ink-950 animate-pop ml-auto">FREE HIT</span>` : ''}
+        ${st.freeHit ? `<span class="pill bg-amber-400 text-onaccent animate-pop ml-auto">FREE HIT</span>` : ''}
       </div>
 
       <div class="flex items-end gap-3">
@@ -127,7 +127,7 @@ function crease(m, st) {
     if (!id) return `<div class="flex items-center gap-2.5 py-2 opacity-40"><span class="text-xs text-slate-500">— waiting for a batter —</span></div>`;
     const b = st.bat[id] || { r: 0, b: 0, f4: 0, f6: 0 };
     return `<div class="flex items-center gap-2.5 py-1.5 ${onStrike ? '' : 'opacity-70'}">
-      <span class="h-7 w-7 shrink-0 grid place-items-center rounded-full text-[10px] font-bold ${onStrike ? 'bg-emerald-500 text-ink-950' : 'bg-white/8 text-slate-300'}">${esc(initials(nameOf(id)))}</span>
+      <span class="h-7 w-7 shrink-0 grid place-items-center rounded-full text-[10px] font-bold ${onStrike ? 'bg-emerald-500 text-onaccent' : 'bg-white/8 text-slate-300'}">${esc(initials(nameOf(id)))}</span>
       <span class="flex-1 min-w-0 text-[13px] font-semibold text-white truncate">${esc(shortName(nameOf(id)))}${onStrike ? '<span class="text-emerald-400">*</span>' : ''}</span>
       <span class="num text-[13px] font-bold text-white">${b.r}<span class="text-slate-500 font-medium"> (${b.b})</span></span>
       <span class="num text-[10px] text-slate-500 w-16 text-right">${b.f4}×4 ${b.f6}×6</span>
@@ -221,10 +221,10 @@ function finishedBanner(m, st) {
 function pad(st) {
   const blocked = st.needsBatter || st.needsBowler || st.closed;
   const EX = [
-    { k: 'wd', label: 'Wide',   cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30', on: 'bg-amber-500 text-ink-950 border-amber-400' },
-    { k: 'nb', label: 'No ball',cls: 'bg-orange-500/15 text-orange-300 border-orange-500/30', on: 'bg-orange-500 text-ink-950 border-orange-400' },
-    { k: 'b',  label: 'Bye',    cls: 'bg-teal-500/15 text-teal-300 border-teal-500/30', on: 'bg-teal-500 text-ink-950 border-teal-400' },
-    { k: 'lb', label: 'Leg bye',cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30', on: 'bg-cyan-500 text-ink-950 border-cyan-400' }
+    { k: 'wd', label: 'Wide',   cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30', on: 'bg-amber-500 text-onaccent border-amber-400' },
+    { k: 'nb', label: 'No ball',cls: 'bg-orange-500/15 text-orange-300 border-orange-500/30', on: 'bg-orange-500 text-onaccent border-orange-400' },
+    { k: 'b',  label: 'Bye',    cls: 'bg-teal-500/15 text-teal-300 border-teal-500/30', on: 'bg-teal-500 text-onaccent border-teal-400' },
+    { k: 'lb', label: 'Leg bye',cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30', on: 'bg-cyan-500 text-onaccent border-cyan-400' }
   ];
 
   const hint = armed === 'wd' ? 'Wide armed — tap the runs the batters <b>ran</b> (0 for a plain wide)'

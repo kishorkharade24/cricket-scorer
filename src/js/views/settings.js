@@ -3,7 +3,8 @@
 import { esc, download, toast, confirmDlg, sheet, fmtDateTime } from '../util.js';
 import * as store from '../store.js';
 import { section } from '../ui.js';
-import { promptInstall } from '../pwa.js';
+import { promptInstall, checkForUpdate } from '../pwa.js';
+import * as theme from '../theme.js';
 
 export default {
   nav: 'home',
@@ -18,6 +19,20 @@ export default {
     const kb = (bytes / 1024).toFixed(1);
 
     return `
+      ${section('Appearance')}
+      <div class="card p-4">
+        <div class="grid grid-cols-3 gap-2">
+          ${theme.THEMES.map(t => `<button data-theme-set="${t.key}"
+            class="rounded-xl border px-2 py-3 text-center transition active:scale-95 ${
+              (s.theme || 'dark') === t.key
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                : 'bg-white/5 border-white/10 text-slate-400'}">
+            <span class="block text-lg leading-none">${t.icon}</span>
+            <span class="block mt-1.5 text-xs font-bold">${t.label}</span></button>`).join('')}
+        </div>
+        <p class="mt-3 text-[11px] text-slate-500">${esc(theme.THEMES.find(t => t.key === (s.theme || 'dark'))?.hint || '')}</p>
+      </div>
+
       ${section('Scoring defaults')}
       <div class="card p-4 grid grid-cols-2 gap-3">
         <div><label class="label" for="defOvers">Overs</label>
@@ -62,6 +77,10 @@ export default {
           <span class="text-lg">⬇️</span>
           <span class="flex-1"><span class="block text-sm font-semibold text-white">Install on this device</span>
           <span class="block text-[11px] text-slate-500">Runs full screen and works with no connection</span></span></button>
+        <button data-act="update" class="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-white/[.03] transition">
+          <span class="text-lg">🔄</span>
+          <span class="flex-1"><span class="block text-sm font-semibold text-white">Check for updates</span>
+          <span class="block text-[11px] text-slate-500">Fetches the newest version if one has been published</span></span></button>
         <button data-act="about" class="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-white/[.03] transition">
           <span class="text-lg">ℹ️</span>
           <span class="flex-1"><span class="block text-sm font-semibold text-white">Scoring rules used</span>
@@ -81,6 +100,11 @@ export default {
   },
 
   mount(root, ctx) {
+    root.querySelectorAll('[data-theme-set]').forEach(b => b.addEventListener('click', () => {
+      theme.set(b.dataset.themeSet);
+      ctx.render();
+    }));
+
     root.querySelector('#defOvers')?.addEventListener('change', e =>
       store.setSetting('defaultOvers', Math.max(1, Math.min(90, +e.target.value || 20))));
     root.querySelector('#defPlayers')?.addEventListener('change', e =>
@@ -126,6 +150,16 @@ export default {
     root.querySelector('[data-act="install"]')?.addEventListener('click', promptInstall);
     root.querySelector('[data-act="about"]')?.addEventListener('click', aboutSheet);
 
+    root.querySelector('[data-act="update"]')?.addEventListener('click', async e => {
+      const btn = e.currentTarget;
+      btn.style.opacity = '.5';
+      const r = await checkForUpdate();
+      btn.style.opacity = '';
+      if (!r.ok) toast(r.reason, 'warn', 3500);
+      else if (r.update) toast('A new version is downloading — reload when it prompts', 'ok', 4000);
+      else toast('You are on the latest version', 'ok');
+    });
+
     root.querySelector('[data-act="reset"]')?.addEventListener('click', async () => {
       if (!await confirmDlg('Delete everything?',
         'Every team, player, match and tournament stored in this browser will be erased. Export a backup first if you might want it back.', 'Delete it all')) return;
@@ -152,7 +186,7 @@ function toggle(key, title, sub, on) {
     <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-white">${esc(title)}</span>
     <span class="block text-[11px] text-slate-500">${esc(sub)}</span></span>
     <span class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${on ? 'bg-emerald-500' : 'bg-white/15'}">
-      <span class="block h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4' : ''}"></span></span>
+      <span class="block h-5 w-5 rounded-full bg-pure shadow transition-transform ${on ? 'translate-x-4' : ''}"></span></span>
   </button>`;
 }
 

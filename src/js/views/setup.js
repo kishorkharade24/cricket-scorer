@@ -125,13 +125,12 @@ export default {
       const list = d.xi[tid] || (d.xi[tid] = []);
       const i = list.indexOf(pid);
       if (i >= 0) list.splice(i, 1);
-      else if (list.length >= d.playersPerSide) { toast(`Only ${d.playersPerSide} players per side`, 'warn'); return; }
-      else list.push(pid);
+      else list.push(pid);          // sides need not be even — turf teams rarely are
       rr();
     }));
     root.querySelectorAll('[data-autoxi]').forEach(b => b.addEventListener('click', () => {
       const tid = b.dataset.autoxi;
-      d.xi[tid] = store.players(tid).slice(0, d.playersPerSide).map(p => p.id);
+      d.xi[tid] = store.players(tid).map(p => p.id);
       rr();
     }));
 
@@ -196,11 +195,11 @@ function step1(teams) {
     <div class="card p-4 mt-4">
       <p class="label">Overs per innings</p>
       <div class="flex flex-wrap gap-2">
-        ${PRESETS.map(p => `<button data-overs="${p.overs}" class="btn-chip ${d.overs === p.overs ? '!bg-emerald-500 !text-ink-950 !border-emerald-400' : ''}">${p.label}</button>`).join('')}
+        ${PRESETS.map(p => `<button data-overs="${p.overs}" class="btn-chip ${d.overs === p.overs ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${p.label}</button>`).join('')}
         <input id="oversCustom" type="number" min="1" max="90" value="${d.overs}" class="w-16 rounded-full bg-white/5 border border-white/10 px-3 py-1.5 text-xs text-center num" aria-label="Custom overs">
       </div>
       <div class="grid grid-cols-2 gap-3 mt-4">
-        <div><label class="label" for="pps">Players per side</label>
+        <div><label class="label" for="pps">Players a side <span class="normal-case text-slate-600">(default)</span></label>
           <input id="pps" type="number" min="2" max="15" value="${d.playersPerSide}" class="field num"></div>
         <div><label class="label" for="mopb">Max overs / bowler</label>
           <input id="mopb" type="number" min="1" max="${d.overs}" value="${mopb}" class="field num"></div>
@@ -217,9 +216,9 @@ function step1(teams) {
       </div>
       <div class="grid grid-cols-2 gap-3 mt-4">
         <div><p class="label">Runs for a wide</p>
-          <div class="flex gap-2">${[1, 2].map(n => `<button data-rule="__wide${n}" class="btn-chip flex-1 ${d.rules.widePenalty === n ? '!bg-emerald-500 !text-ink-950' : ''}">${n}</button>`).join('')}</div></div>
+          <div class="flex gap-2">${[1, 2].map(n => `<button data-rule="__wide${n}" class="btn-chip flex-1 ${d.rules.widePenalty === n ? '!bg-emerald-500 !text-onaccent' : ''}">${n}</button>`).join('')}</div></div>
         <div><p class="label">Runs for a no ball</p>
-          <div class="flex gap-2">${[1, 2].map(n => `<button data-rule="__nb${n}" class="btn-chip flex-1 ${d.rules.noBallPenalty === n ? '!bg-emerald-500 !text-ink-950' : ''}">${n}</button>`).join('')}</div></div>
+          <div class="flex gap-2">${[1, 2].map(n => `<button data-rule="__nb${n}" class="btn-chip flex-1 ${d.rules.noBallPenalty === n ? '!bg-emerald-500 !text-onaccent' : ''}">${n}</button>`).join('')}</div></div>
       </div>
     </div>
 
@@ -251,7 +250,7 @@ function toggle(key, title, sub) {
       <span class="block text-sm font-semibold text-white">${esc(title)}</span>
       <span class="block text-[11px] text-slate-500 leading-snug">${esc(sub)}</span></span>
     <span class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${on ? 'bg-emerald-500' : 'bg-white/15'}">
-      <span class="block h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4' : ''}"></span></span>
+      <span class="block h-5 w-5 rounded-full bg-pure shadow transition-transform ${on ? 'translate-x-4' : ''}"></span></span>
   </button>`;
 }
 
@@ -292,12 +291,13 @@ function step3() {
   const panel = tid => {
     const squad = store.players(tid);
     const picked = d.xi[tid] || [];
-    const short = picked.length < Math.min(2, d.playersPerSide);
+    const short = picked.length < 2;
     return `<div class="card p-4">
       <div class="flex items-center gap-2.5 mb-3">
         ${badge(tid, 'sm')}
         <p class="flex-1 text-sm font-bold text-white truncate">${esc(teamName(tid))}</p>
-        <span class="num text-xs font-bold ${picked.length === d.playersPerSide ? 'text-emerald-400' : short ? 'text-rose-400' : 'text-amber-400'}">${picked.length}/${d.playersPerSide}</span>
+        <span class="num text-xs font-bold ${short ? 'text-rose-400' : picked.length === d.playersPerSide ? 'text-emerald-400' : 'text-amber-400'}">${picked.length}
+          <span class="font-medium text-slate-600">player${picked.length === 1 ? '' : 's'}</span></span>
       </div>
       ${squad.length ? `<div class="grid gap-1.5 max-h-72 overflow-y-auto no-scrollbar">
         ${squad.map(p => {
@@ -311,15 +311,21 @@ function step3() {
               ${p.role === 'Wicket-keeper' ? '<span class="ml-1 text-[9px] text-amber-300">WK</span>' : ''}</span>
           </button>`;
         }).join('')}</div>
-        <button data-autoxi="${tid}" class="mt-2.5 w-full btn-chip">Auto-pick top ${d.playersPerSide}</button>`
+        <button data-autoxi="${tid}" class="mt-2.5 w-full btn-chip">Pick all ${squad.length}</button>`
         : `<p class="text-xs text-amber-400 py-3">No players in this squad. <a href="#/team/${tid}" class="underline">Add some</a> first.</p>`}
     </div>`;
   };
 
-  const ready = [d.teamA, d.teamB].every(t => (d.xi[t] || []).length >= 2);
+  const nA = (d.xi[d.teamA] || []).length, nB = (d.xi[d.teamB] || []).length;
+  const ready = nA >= 2 && nB >= 2;
+  const uneven = ready && nA !== nB;
   return `
-    <p class="text-xs text-slate-500 mb-3 leading-relaxed">Tap players in batting order. You need at least 2 per side to start;
-    the numbers become the default order for new batters.</p>
+    <p class="text-xs text-slate-500 mb-3 leading-relaxed">Tap players in batting order. At least 2 a side;
+    the numbers become the order new batters come in.</p>
+    ${uneven ? `<div class="rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-2.5 mb-3">
+      <p class="text-[11px] text-amber-200 leading-snug"><b>${nA} v ${nB}</b> — the sides are uneven, which is fine.
+      Each team is all out one short of its own size, so ${esc(teamName(nA < nB ? d.teamA : d.teamB))} is all out at
+      ${Math.min(nA, nB) - 1} wicket${Math.min(nA, nB) - 1 === 1 ? '' : 's'}.</p></div>` : ''}
     <div class="grid gap-4">${panel(d.teamA)}${panel(d.teamB)}</div>
     <div class="grid grid-cols-2 gap-3 mt-5">
       <button data-act="prev" class="btn-ghost !py-3.5">← Back</button>

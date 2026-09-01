@@ -1,6 +1,6 @@
 /* Full scorecard for one match. */
 
-import { esc, fixed, oversOf, shortName, copyText, toast, fmtDate } from '../util.js';
+import { esc, fixed, oversOf, shortName, copyText, toast, fmtDate, sheet, closeSheet } from '../util.js';
 import * as store from '../store.js';
 import { badge, empty, teamName, nameOf, tabs, ballChip, ICON, iconBtn } from '../ui.js';
 import * as E from '../engine.js';
@@ -38,6 +38,7 @@ export default {
 
     return `
       ${header(m, states, res)}
+      ${tieBreakCard(m)}
       ${states.length > 1 ? tabs(states.map((s, i) => ({
           key: String(i), label: `${store.team(s.battingTeamId)?.short || 'INN'} ${s.runs}/${s.wickets}`
         })), String(tab)) : ''}
@@ -52,6 +53,7 @@ export default {
 
   mount(root, ctx) {
     root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { tab = +b.dataset.tab; ctx.render(); }));
+    root.querySelector('[data-act="tiebreak"]')?.addEventListener('click', () => tieBreakSheet(store.match(ctx.id), ctx));
     document.querySelector('#pageActions [data-act="share"]')?.addEventListener('click', async () => {
       const m = store.match(ctx.id);
       const text = fullText(m);
@@ -62,6 +64,69 @@ export default {
 };
 
 /* ------------------------------------------------------------------ */
+
+/** A tie has to send someone through in a knockout — offer that here too, not
+ *  only on the one-off result screen that appears when the match ends. */
+function tieBreakCard(m) {
+  if (!m.result?.tie) return '';
+  const done = m.tieBreak?.winnerId;
+  return `<button data-act="tiebreak" class="w-full card-h p-4 mt-4 flex items-center gap-3 text-left">
+    <span class="h-10 w-10 shrink-0 rounded-xl bg-amber-500/15 border border-amber-500/25 grid place-items-center text-lg">🤝</span>
+    <span class="flex-1 min-w-0">
+      <span class="block text-sm font-bold text-white">${done ? 'Tie settled' : 'Scores level — who went through?'}</span>
+      <span class="block text-[11px] text-slate-500">${done
+        ? `${esc(teamName(m.tieBreak.winnerId))} won the ${esc(m.tieBreak.method)} · tap to change`
+        : 'Record a Super Over or bowl-out winner so a knockout bracket can carry on'}</span></span>
+    <span class="text-slate-600">›</span></button>`;
+}
+
+async function tieBreakSheet(m, ctx) {
+  if (!m) return;
+  const METHODS = ['Super Over', 'Bowl-out', 'Boundary count', 'Coin toss'];
+  const v = await sheet(`
+    <h3 class="text-lg font-bold text-white">How was the tie settled?</h3>
+    <p class="text-xs text-slate-500 mt-1">League points are not affected — a tie stays a tie. This only
+      decides who goes through in a knockout.</p>
+    <p class="label mt-5">Method</p>
+    <div class="grid grid-cols-2 gap-2" id="tbMethod">
+      ${METHODS.map((x, i) => `<button type="button" data-tbm="${esc(x)}"
+        class="rounded-xl border px-3 py-2.5 text-xs font-bold transition ${(m.tieBreak?.method || 'Super Over') === x
+          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-white/5 border-white/10 text-slate-400'}">${esc(x)}</button>`).join('')}
+    </div>
+    <p class="label mt-5">Winner</p>
+    <div class="grid gap-2">
+      ${m.teams.map(tid => `<button data-tbwin="${tid}" class="flex items-center gap-3 rounded-xl border px-3 py-3 text-left transition active:scale-[.98] ${
+        m.tieBreak?.winnerId === tid ? 'bg-amber-500/15 border-amber-500/35' : 'bg-white/5 border-white/10 hover:bg-white/10'}">
+        ${badge(tid, 'sm')}
+        <span class="flex-1 text-sm font-semibold text-white truncate">${esc(teamName(tid))}</span>
+        ${m.tieBreak?.winnerId === tid ? '<span class="text-amber-300">✓</span>' : ''}</button>`).join('')}
+    </div>
+    <div class="mt-5 grid ${m.tieBreak?.winnerId ? 'grid-cols-2' : 'grid-cols-1'} gap-3">
+      <button class="btn-ghost" data-close="__dismiss">Cancel</button>
+      ${m.tieBreak?.winnerId ? '<button class="btn-danger" data-close="clear">Clear</button>' : ''}
+    </div>`, { grab: false });
+
+  if (v === 'clear') { E.setTieBreak(m, null); store.save(true); toast('Tie-break cleared', 'ok'); ctx.render(); return; }
+  if (!v || !v.startsWith('tbwin:')) return;
+  const method = window.__tbMethod || m.tieBreak?.method || 'Super Over';
+  E.setTieBreak(m, v.slice(6), method);
+  store.save(true);
+  toast(`${teamName(m.tieBreak.winnerId)} went through`, 'ok');
+  ctx.render();
+}
+
+document.addEventListener('click', e => {
+  const meth = e.target.closest('#tbMethod [data-tbm]');
+  if (meth) {
+    meth.parentElement.querySelectorAll('[data-tbm]').forEach(b =>
+      b.className = b.className.replace('bg-emerald-500/15 border-emerald-500/40 text-emerald-300', 'bg-white/5 border-white/10 text-slate-400'));
+    meth.className = meth.className.replace('bg-white/5 border-white/10 text-slate-400', 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300');
+    window.__tbMethod = meth.dataset.tbm;
+    return;
+  }
+  const win = e.target.closest('[data-tbwin]');
+  if (win) closeSheet('tbwin:' + win.dataset.tbwin);
+});
 
 function header(m, states, res) {
   const t = m.tournamentId ? store.tournament(m.tournamentId) : null;

@@ -176,9 +176,14 @@ export function computeInnings(match, idx) {
 
   const battersLeft = () => battingXI.filter(canBatAgain).length;
 
+  // Turf and gully sides are rarely even. The team that batted is however many
+  // players were actually named, not the nominal match size — so a nine-a-side
+  // team is all out at eight even when the match is set up as eleven.
+  const sideSize = battingXI.length || st.playersPerSide;
+
   const checkClose = () => {
     if (st.closed) return;
-    const allOutAt = rules.lastManStands ? st.playersPerSide : st.playersPerSide - 1;
+    const allOutAt = rules.lastManStands ? sideSize : sideSize - 1;
     if (st.target != null && st.runs >= st.target) { st.closed = true; st.closeReason = 'target'; return; }
     if (st.wickets >= allOutAt) { st.closed = true; st.closeReason = 'allout'; return; }
     if (st.balls >= st.maxBalls) { st.closed = true; st.closeReason = 'overs'; return; }
@@ -385,7 +390,8 @@ export function computeInnings(match, idx) {
   st.oversText = oversOf(st.balls);
   st.crr = rate(st.runs, st.balls);
   st.ballsLeft = Math.max(0, st.maxBalls - st.balls);
-  st.wicketsLeft = (rules.lastManStands ? st.playersPerSide : st.playersPerSide - 1) - st.wickets;
+  st.sideSize = sideSize;
+  st.wicketsLeft = (rules.lastManStands ? sideSize : sideSize - 1) - st.wickets;
   st.extrasTotal = st.extras.wide + st.extras.noball + st.extras.bye + st.extras.legbye + st.extras.penalty;
 
   if (st.target != null) {
@@ -634,7 +640,13 @@ export function battingRows(st, nameOf) {
 }
 
 export function bowlingRows(st, nameOf) {
-  return st.bowlOrder.map(id => {
+  // Someone can be named for an over that never happened (the innings closed
+  // first). Leave them out — but keep anyone who bowled only wides, since they
+  // have no legal balls yet still conceded runs.
+  return st.bowlOrder.filter(id => {
+    const w = st.bowl[id];
+    return w && (w.balls > 0 || w.runs > 0 || w.wkts > 0);
+  }).map(id => {
     const w = st.bowl[id];
     return {
       id, name: nameOf(id),
