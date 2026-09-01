@@ -64,6 +64,7 @@ export function newMatch(cfg) {
     retireAt: 0,           // 0 = off; otherwise offer to retire a batter on N
     extraBats: 0,          // how many players may bat a second time (short side)
     everyoneBowls: false,  // nudge the scorer so nobody is left out
+    zones: [],             // fixed-run areas of the ground; batters do not cross
     ...rules
   };
 
@@ -337,8 +338,10 @@ export function computeInnings(match, idx) {
       if (legal) st.partner.balls++;
     }
 
-    // Odd number of runs actually run means the batters have crossed.
-    if (ranRuns % 2 === 1) swapEnds();
+    // Odd runs mean the batters crossed — unless the ball found a fixed-run
+    // area of the ground, where the runs are awarded and nobody runs. The same
+    // batter keeps the strike, which is the whole point of the rule.
+    if (ranRuns % 2 === 1 && !e.nr) swapEnds();
 
     /* ---- wicket on this delivery ---- */
     let outId = null;
@@ -365,11 +368,12 @@ export function computeInnings(match, idx) {
     }
 
     /* ---- ball chip for the over strip ---- */
-    st.curOver.balls.push(chip({ n, wd, nb, bye, lb, wicket: !!e.w && !dismissal(e.w?.type).notOut, freeHit: st.freeHit }));
+    st.curOver.balls.push(chip({ n, wd, nb, bye, lb, nr: !!e.nr,
+      wicket: !!e.w && !dismissal(e.w?.type).notOut, freeHit: st.freeHit }));
 
     st.commentary.unshift(commentaryLine(st, {
       over: oversOf(legal ? st.balls : st.balls), bowler: st.bowler, striker: strikerAtBall,
-      n, wd, nb, bye, lb, w: e.w, batRuns, teamRuns
+      n, wd, nb, bye, lb, nr: !!e.nr, w: e.w, batRuns, teamRuns
     }));
 
     /* ---- free hit bookkeeping ---- */
@@ -457,7 +461,7 @@ export function computeInnings(match, idx) {
 }
 
 /* ---- ball chip for the over strip ---- */
-function chip({ n, wd, nb, bye, lb, wicket, freeHit }) {
+function chip({ n, wd, nb, bye, lb, nr, wicket, freeHit }) {
   if (wicket) {
     let t = 'W';
     if (wd) t = 'W' + (n ? n : '') + 'wd';
@@ -469,6 +473,7 @@ function chip({ n, wd, nb, bye, lb, wicket, freeHit }) {
   if (nb) return { t: n ? `nb${n}` : 'nb', k: 'extra', fh: freeHit };
   if (bye) return { t: `${n}b`, k: 'bye' };
   if (lb) return { t: `${n}lb`, k: 'bye' };
+  if (nr) return { t: `${n}z`, k: 'zone' };
   if (n === 4) return { t: '4', k: 'four' };
   if (n === 6) return { t: '6', k: 'six' };
   if (n === 0) return { t: '•', k: 'dot' };
@@ -482,6 +487,7 @@ function commentaryLine(st, d) {
   else if (d.nb) text = `no ball, ${d.n || 0} run${d.n === 1 ? '' : 's'}`;
   else if (d.bye) text = `${d.n} bye${d.n > 1 ? 's' : ''}`;
   else if (d.lb) text = `${d.n} leg bye${d.n > 1 ? 's' : ''}`;
+  else if (d.nr) text = `${d.n} off the zone, no change of ends`;
   else if (d.n === 6) text = 'SIX!';
   else if (d.n === 4) text = 'FOUR';
   else if (d.n === 0) text = 'no run';

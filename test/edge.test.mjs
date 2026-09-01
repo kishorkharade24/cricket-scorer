@@ -281,13 +281,32 @@ t('two wickets ends the Super Over innings even with a batter spare', () => {
   assert.equal(st.closed, true);
   assert.equal(st.closeReason, 'allout');
 });
-t('a Super Over does not touch career figures', () => {
+t('Super Over runs count towards a career when the setting says so', () => {
   const parent = mk({ overs: 2, pps: 4, batN: 4, bowlN: 4 });
   for (let i = 0; i < 6; i++) ball(parent, { r: 4 });
   const before = stats.aggregate([parent]).get('a1').runs;
+
   const so = E.newSuperOver(parent, { A: ['a1','a2','a3'], B: ['b1','b2','b3'] });
-  const after = stats.aggregate([parent, so]).get('a1').runs;
-  assert.equal(after, before);
+  const first = so.innings[0].battingTeamId;
+  const bat = first === 'A' ? ['a1','a2'] : ['b1','b2'];
+  E.push(so, { t: 'bat', id: bat[0] }); E.push(so, { t: 'bat', id: bat[1] });
+  E.push(so, { t: 'bowl', id: first === 'A' ? 'b1' : 'a1' });
+  E.push(so, { t: 'ball', r: 6 }); E.autoAdvance(so);
+
+  const counted = stats.aggregate([parent, so], () => true, { includeSuperOvers: true }).get(bat[0]).runs;
+  const notCounted = stats.aggregate([parent, so], () => true, { includeSuperOvers: false }).get('a1').runs;
+  assert.equal(notCounted, before, 'excluded when the setting is off');
+  assert.ok(counted > 0, 'included when the setting is on');
+});
+t('a Super Over never affects the league table', () => {
+  const parent = mk({ overs: 2, pps: 4, batN: 4, bowlN: 4 });
+  parent.tournamentId = 'tr_x';
+  E.push(parent, { t: 'end', reason: 'manual' }); E.autoAdvance(parent);
+  const so = E.newSuperOver(parent, { A: ['a1','a2','a3'], B: ['b1','b2','b3'] });
+  so.tournamentId = 'tr_x';
+  const tour = { id: 'tr_x', teamIds: ['A', 'B'], points: { win: 2, tie: 1, noResult: 1, loss: 0 } };
+  const rows = stats.pointsTable(tour, [parent, so]);
+  assert.ok(rows.every(r => r.p <= 1), 'the Super Over must not count as another fixture');
 });
 
 console.log('\nK. Turf rules');
@@ -359,6 +378,67 @@ t('the app knows who has not bowled yet', () => {
   const st = S(m);
   assert.deepEqual(st.yetToBowl, ['b2', 'b3', 'b4']);
   assert.equal(st.oversLeft, 5);
+});
+
+console.log('\nL. Fixed-run zones');
+t('an odd number of runs off a zone does not change the strike', () => {
+  const m = mk({ overs: 5, pps: 6, batN: 6, rules: { zones: [{ label: 'Net', runs: 1 }] } });
+  assert.equal(S(m).striker, 'a1');
+  E.push(m, { t: 'ball', r: 1, nr: true }); E.autoAdvance(m);
+  const st = S(m);
+  assert.equal(st.striker, 'a1', 'the same batter must keep the strike');
+  assert.equal(st.runs, 1);
+  assert.equal(st.bat.a1.r, 1, 'the runs still go to the batter');
+  assert.equal(st.balls, 1, 'it is a legal delivery');
+});
+t('the same runs without the zone flag do change the strike', () => {
+  const m = mk({ overs: 5, pps: 6, batN: 6 });
+  E.push(m, { t: 'ball', r: 1 }); E.autoAdvance(m);
+  assert.equal(S(m).striker, 'a2');
+});
+t('any configured value works, odd or even', () => {
+  const m = mk({ overs: 5, pps: 6, batN: 6, rules: { zones: [{ label: 'Wall', runs: 3 }] } });
+  E.push(m, { t: 'ball', r: 3, nr: true }); E.autoAdvance(m);
+  assert.equal(S(m).striker, 'a1');
+  assert.equal(S(m).runs, 3);
+});
+t('the strike still changes at the end of the over', () => {
+  const m = mk({ overs: 5, pps: 6, batN: 6, rules: { zones: [{ label: 'Net', runs: 1 }] } });
+  for (let i = 0; i < 6; i++) { E.push(m, { t: 'ball', r: 1, nr: true }); E.autoAdvance(m); }
+  assert.equal(S(m).striker, 'a2', 'ends change over regardless');
+  assert.equal(S(m).runs, 6);
+});
+t('a zone hit is marked in the over so it can be told apart', () => {
+  const m = mk({ overs: 5, pps: 6, batN: 6, rules: { zones: [{ label: 'Net', runs: 2 }] } });
+  E.push(m, { t: 'ball', r: 2, nr: true }); E.autoAdvance(m);
+  const chip = S(m).thisOver[0];
+  assert.equal(chip.t, '2z');
+  assert.equal(chip.k, 'zone');
+});
+
+console.log('\nM. Team short codes');
+t('Team A and Team B do not both become TEAM', () => {
+  store.resetAll();
+  const a = store.addTeam({ name: 'Team A' });
+  const b = store.addTeam({ name: 'Team B' });
+  assert.notEqual(a.short, b.short, `both came out as ${a.short}`);
+  assert.equal(a.short, 'TEA');
+  assert.equal(b.short, 'TEB');
+});
+t('ordinary names still read naturally', () => {
+  store.resetAll();
+  assert.equal(store.addTeam({ name: 'Mumbai Mavericks' }).short, 'MUM');
+  assert.equal(store.addTeam({ name: 'Reds' }).short, 'RED');
+});
+t('two teams starting the same way still differ', () => {
+  store.resetAll();
+  const a = store.addTeam({ name: 'Chennai Chargers' });
+  const b = store.addTeam({ name: 'Chennai Kings' });
+  assert.notEqual(a.short, b.short, `both came out as ${a.short}`);
+});
+t('an explicit code is respected', () => {
+  store.resetAll();
+  assert.equal(store.addTeam({ name: 'Anything', short: 'zzz' }).short, 'ZZZ');
 });
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

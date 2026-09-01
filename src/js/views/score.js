@@ -52,6 +52,14 @@ export default {
     const rr = () => ctx.render();
 
     root.querySelectorAll('[data-run]').forEach(b => b.addEventListener('click', () => runTap(m, +b.dataset.run, ctx)));
+    root.querySelectorAll('[data-zone]').forEach(b => b.addEventListener('click', () => {
+      const z = (m.rules?.zones || [])[+b.dataset.zone];
+      if (!z) return;
+      const ev = { t: 'ball', r: +z.runs, nr: true };
+      if (armed === 'nb') ev.nb = true;      // a no ball can still find the zone
+      armed = null;
+      commit(m, ev, ctx);
+    }));
     root.querySelectorAll('[data-extra]').forEach(b => b.addEventListener('click', () => {
       armed = armed === b.dataset.extra ? null : b.dataset.extra;
       haptic(8); rr();
@@ -242,7 +250,15 @@ function pad(st) {
     return `<button data-run="${n}" class="runbtn h-16 text-2xl ${tone}" ${blocked ? 'disabled' : ''}>${n === 0 && !armed ? '•' : n}</button>`;
   };
 
+  const zones = (st.rules?.zones || []).filter(z => z && Number.isFinite(+z.runs));
+
   return `<div class="card p-3 mt-3 ${blocked ? 'opacity-60 pointer-events-none' : ''}">
+    ${zones.length ? `<div class="flex flex-wrap gap-2 mb-2">
+      ${zones.map((z, i) => `<button data-zone="${i}" class="runbtn h-11 flex-1 min-w-[7rem] px-2 text-[11px] bg-lime-500/15 text-lime-300 border-lime-500/30" ${blocked ? 'disabled' : ''}>
+        <span class="truncate">${esc(z.label || 'Zone')}</span>
+        <span class="ml-1.5 font-extrabold num">+${+z.runs}</span></button>`).join('')}
+    </div>
+    <p class="text-[10px] text-center text-slate-600 mb-2">Fixed runs · the batters do not cross, so the strike stays</p>` : ''}
     <div class="grid grid-cols-4 gap-2 mb-2">
       ${EX.map(x => `<button data-extra="${x.k}" class="runbtn h-11 text-[11px] uppercase tracking-wide border ${armed === x.k ? x.on + ' animate-pop' : x.cls}">${x.label}</button>`).join('')}
     </div>

@@ -25,6 +25,7 @@ function fresh() {
     shuffle: 0,
     noLbw: true,            // turf default — there is no umpire
     retireAt: 0,
+    zones: [],
     split: null                    // the result of the last balance
   };
 }
@@ -64,6 +65,17 @@ export default {
           <span class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${d.noLbw ? 'bg-emerald-500' : 'bg-white/15'}">
             <span class="block h-5 w-5 rounded-full bg-pure shadow transition-transform ${d.noLbw ? 'translate-x-4' : ''}"></span></span>
         </button>
+        <p class="label mt-4">Fixed-run zones</p>
+        <p class="text-[11px] text-slate-500 leading-snug mb-2">A marked area worth set runs, with no change of strike.</p>
+        <div class="flex flex-wrap gap-2">
+          ${[0, 1, 2, 3].map(n => `<button data-zn="${n}" class="btn-chip ${(d.zones.length) === n ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${n === 0 ? 'None' : n + (n === 1 ? ' zone' : ' zones')}</button>`).join('')}
+        </div>
+        ${d.zones.length ? `<div class="grid gap-2 mt-2">
+          ${d.zones.map((z, i) => `<div class="flex items-center gap-2">
+            <input data-qzname="${i}" class="field !py-2 text-sm flex-1" value="${esc(z.label)}" placeholder="Zone name" maxlength="18">
+            <input data-qzruns="${i}" type="number" min="1" max="12" value="${z.runs}" class="field !py-2 w-16 text-center num">
+          </div>`).join('')}</div>` : ''}
+
         <p class="label mt-4">Retire on</p>
         <div class="flex flex-wrap gap-2">
           ${[0, 25, 30, 50].map(n => `<button data-retire="${n}" class="btn-chip ${d.retireAt === n ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${n === 0 ? 'Off' : n}</button>`).join('')}
@@ -114,6 +126,17 @@ export default {
     root.querySelector('[data-act="split"]')?.addEventListener('click', () => doSplit(ctx));
     root.querySelector('[data-act="reshuffle"]')?.addEventListener('click', () => { d.shuffle++; doSplit(ctx, true); });
     root.querySelector('[data-act="nolbw"]')?.addEventListener('click', () => { d.noLbw = !d.noLbw; rr(); });
+    root.querySelectorAll('[data-zn]').forEach(b => b.addEventListener('click', () => {
+      const n = +b.dataset.zn;
+      d.zones = Array.from({ length: n }, (_, i) => d.zones[i] || { label: `Zone ${i + 1}`, runs: i + 1 });
+      rr();
+    }));
+    root.querySelectorAll('[data-qzname]').forEach(i => i.addEventListener('input', e => {
+      d.zones[+i.dataset.qzname].label = e.target.value;
+    }));
+    root.querySelectorAll('[data-qzruns]').forEach(i => i.addEventListener('change', e => {
+      d.zones[+i.dataset.qzruns].runs = Math.max(1, Math.min(12, +e.target.value || 1)); rr();
+    }));
     root.querySelectorAll('[data-retire]').forEach(b => b.addEventListener('click', () => {
       d.retireAt = +b.dataset.retire; rr();
     }));
@@ -260,7 +283,10 @@ function start(ctx) {
     xi: { [teamA.id]: xiA, [teamB.id]: xiB },
     toss: { winnerId: d.batsFirst === 'A' ? teamA.id : teamB.id, decision: 'bat' },
     stage: 'Turf',
-    rules: { noLbw: d.noLbw, retireAt: d.retireAt, extraBats: Math.abs(xiA.length - xiB.length) >= 2 ? 1 : 0 }
+    rules: {
+      noLbw: d.noLbw, retireAt: d.retireAt, zones: d.zones,
+      extraBats: Math.abs(xiA.length - xiB.length) >= 2 ? 1 : 0
+    }
   });
   store.addMatch(m);
   d = null;

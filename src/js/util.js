@@ -87,7 +87,11 @@ export function accent(key) { return ACCENTS.find(a => a.key === key) || ACCENTS
 /* ---------- toast ---------- */
 
 let toastHost;
-export function toast(msg, kind = 'info', ms = 2600) {
+/** How long a message stays up. Warnings and errors need reading, not glimpsing. */
+const TOAST_MS = { info: 3200, ok: 3000, warn: 5500, error: 6500 };
+
+export function toast(msg, kind = 'info', ms) {
+  const life = ms ?? TOAST_MS[kind] ?? 3200;
   if (!toastHost) {
     toastHost = document.createElement('div');
     toastHost.className = 'fixed left-1/2 -translate-x-1/2 bottom-24 z-[90] flex flex-col items-center gap-2 pointer-events-none px-4 w-full max-w-md';
@@ -100,15 +104,22 @@ export function toast(msg, kind = 'info', ms = 2600) {
     error: 'bg-rose-500/95 border-rose-300/40 text-white'
   }[kind] || 'bg-ink-850/95 border-white/15';
   const n = document.createElement('div');
-  n.className = `pointer-events-auto animate-slide-up rounded-xl border ${tone} px-4 py-2.5 text-sm font-semibold shadow-lift backdrop-blur-xl text-center`;
+  n.className = `pointer-events-auto cursor-pointer animate-slide-up rounded-xl border ${tone} px-4 py-2.5 text-sm font-semibold shadow-lift backdrop-blur-xl text-center`;
   n.textContent = msg;
   toastHost.appendChild(n);
-  setTimeout(() => {
+
+  let done = false;
+  const dismiss = () => {
+    if (done) return;
+    done = true;
     n.style.transition = 'opacity .25s, transform .25s';
     n.style.opacity = '0';
     n.style.transform = 'translateY(8px)';
     setTimeout(() => n.remove(), 260);
-  }, ms);
+  };
+  n.addEventListener('click', dismiss);          // tap it away if you have read it
+  setTimeout(dismiss, life);
+  return dismiss;
 }
 
 /* ---------- modal / bottom sheet ---------- */

@@ -4,6 +4,7 @@
 
 import { computeInnings, computeResult } from './engine.js';
 import { oversOf, strikeRate } from './util.js';
+import * as store from './store.js';
 
 /** All innings states of a match, computed once. */
 export function statesOf(match) {
@@ -28,17 +29,25 @@ function blankAgg(id) {
 
 /**
  * Roll up batting / bowling / fielding numbers for every player who appears.
+ *
+ * Officially a Super Over does not count towards anyone's record, but on a turf
+ * ground people very much expect the runs they hit to show up. So it is a
+ * setting, and it defaults to counting them.
+ *
  * @param {object[]} matches
  * @param {(m:object)=>boolean} [filter]
+ * @param {{includeSuperOvers?: boolean}} [opts]
  */
-export function aggregate(matches, filter = () => true) {
+export function aggregate(matches, filter = () => true, opts = {}) {
+  const includeSuperOvers = opts.includeSuperOvers ??
+    (store.settings?.().countSuperOverStats ?? true);
   const out = new Map();
   const get = id => { if (!out.has(id)) out.set(id, blankAgg(id)); return out.get(id); };
 
   for (const m of matches) {
     if (!filter(m)) continue;
     if (m.status === 'setup') continue;
-    if (m.isSuperOver) continue;      // a Super Over is a decider, not an innings
+    if (m.isSuperOver && !includeSuperOvers) continue;
     const states = statesOf(m);
     const played = new Set();
 
@@ -177,8 +186,8 @@ export function pointsTable(tournament, allMatches) {
  * Leaderboards
  * ------------------------------------------------------------------ */
 
-export function leaderboards(matches, filter, minBalls = 20, minBowlBalls = 12) {
-  const agg = [...aggregate(matches, filter).values()];
+export function leaderboards(matches, filter, minBalls = 20, minBowlBalls = 12, opts = {}) {
+  const agg = [...aggregate(matches, filter, opts).values()];
   const top = (list, n = 10) => list.slice(0, n);
   return {
     runs:     top(agg.filter(a => a.runs > 0).sort((a, b) => b.runs - a.runs || b.sr - a.sr)),

@@ -14,7 +14,7 @@ import { aggregate } from './stats.js';
  * instead of all landing on one side.
  */
 export function ratePlayers(ids, matches) {
-  const agg = aggregate(matches);
+  const agg = aggregate(matches, () => true, { includeSuperOvers: false });
   const raw = new Map();
 
   for (const id of ids) {

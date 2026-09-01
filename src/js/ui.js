@@ -131,7 +131,8 @@ export function ballChip(c, i = 0, compact = false) {
     six:   'bg-violet-500/25 text-violet-200 border-violet-500/45',
     wkt:   'bg-rose-500/25 text-rose-200 border-rose-500/50',
     extra: 'bg-amber-500/20 text-amber-200 border-amber-500/40',
-    bye:   'bg-teal-500/15 text-teal-200 border-teal-500/30'
+    bye:   'bg-teal-500/15 text-teal-200 border-teal-500/30',
+    zone:  'bg-lime-500/20 text-lime-200 border-lime-500/40'
   }[c.k] || 'bg-white/10 text-slate-200 border-white/15';
   const size = compact
     ? `${c.t.length > 2 ? 'px-1 min-w-[1.7rem]' : 'w-6'} h-6 text-[9px] rounded-md`

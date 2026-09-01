@@ -46,6 +46,7 @@ export default {
         ${toggle('celebrate', 'Boundary animations', 'Flash FOUR, SIX and OUT on the screen', s.celebrate)}
         ${toggle('haptics', 'Vibrate on each ball', 'Only on phones that support it', s.haptics)}
         ${toggle('keepAwake', 'Keep the screen on while scoring', 'Uses the browser wake lock where available', s.keepAwake)}
+        ${toggle('countSuperOverStats', 'Count Super Overs in player stats', 'Official records leave them out; turf sides usually want them in', s.countSuperOverStats)}
       </div>
 
       ${section('Your data')}
@@ -205,6 +206,7 @@ async function aboutSheet() {
     ${rule('Strike rotation', 'The batters cross on odd runs and change ends at the end of every over. After a catch, the new batter takes strike.')}
     ${rule('Innings end', 'Overs completed, the side all out, or the target passed — whichever comes first. You can also end an innings by hand for a declaration or rain.')}
     ${rule('Net run rate', '(runs scored ÷ overs faced) − (runs conceded ÷ overs bowled). A side bowled out is charged its full quota of overs, per ICC practice.')}
+    ${rule('Fixed-run zones', 'Some turf grounds award set runs for hitting a marked area — the net, a wall, past a line. The runs go to the batter, but nobody runs, so the strike does not change. The over strip marks them with a z.')}
     ${rule('Undo', 'Every ball is stored as an event and the scorecard is recalculated from scratch, so undo puts the match back exactly — even across an innings break.')}
     <button class="btn-ghost w-full mt-4" data-close="__dismiss">Close</button>`);
 }

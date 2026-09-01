@@ -5,6 +5,7 @@ import * as store from '../store.js';
 import { badge, empty, teamName, teamShort, nameOf, tabs, ballChip, ICON, iconBtn } from '../ui.js';
 import * as E from '../engine.js';
 import { statesOf } from '../stats.js';
+import { scorecardImage, imageFileName } from '../share-image.js';
 
 let tab = 0;
 
@@ -54,12 +55,7 @@ export default {
   mount(root, ctx) {
     root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { tab = +b.dataset.tab; ctx.render(); }));
     root.querySelector('[data-act="tiebreak"]')?.addEventListener('click', () => tieBreakSheet(store.match(ctx.id), ctx));
-    document.querySelector('#pageActions [data-act="share"]')?.addEventListener('click', async () => {
-      const m = store.match(ctx.id);
-      const text = fullText(m);
-      if (navigator.share) { try { await navigator.share({ text }); return; } catch { /* cancelled */ } }
-      toast(await copyText(text) ? 'Scorecard copied' : 'Could not copy', 'ok');
-    });
+    document.querySelector('#pageActions [data-act="share"]')?.addEventListener('click', () => shareSheet(store.match(ctx.id)));
   }
 };
 
@@ -192,16 +188,10 @@ async function startSuperOver(m, ctx) {
     <div id="soPanes">${soPanesHtml(m)}</div>
     <div class="mt-5 grid grid-cols-2 gap-3">
       <button class="btn-ghost" data-close="__dismiss">Cancel</button>
-      <button class="btn-primary" data-close="go">Start Super Over</button>
+      <button class="btn-primary" data-sostart>Start Super Over</button>
     </div>`, { grab: false });
 
   if (v !== 'go') { soPick = null; soMatch = null; return; }
-
-  const short = m.teams.filter(t => (soPick[t] || []).length < 2);
-  if (short.length) {
-    toast(`${short.map(teamName).join(' and ')} need at least two players`, 'warn', 3500);
-    return startSuperOver(m, ctx);        // reopen with the selection intact
-  }
 
   const previous = store.matches().filter(x => x.parentMatchId === m.id).length;
   const so = E.newSuperOver(m, { [m.teams[0]]: soPick[m.teams[0]], [m.teams[1]]: soPick[m.teams[1]] },
@@ -250,6 +240,21 @@ document.addEventListener('click', e => {
   }
   const opt = e.target.closest('[data-tbopt]');
   if (opt) { closeSheet('tbopt:' + opt.dataset.tbopt); return; }
+
+  const go = e.target.closest('[data-sostart]');
+  if (go) {
+    if (!soPick || !soMatch) return;
+    const short = soMatch.teams.filter(t => (soPick[t] || []).length < 2);
+    if (short.length) {
+      // Leave the sheet open with the choices intact — reopening it was what
+      // made this ask twice and throw the selection away.
+      redrawSoPanes();
+      toast(`${short.map(t => store.team(t)?.name || 'That side').join(' and ')} need at least two players`, 'warn', 5000);
+      return;
+    }
+    closeSheet('go');
+    return;
+  }
 
   const pick = e.target.closest('[data-sopick]');
   if (pick) {
@@ -394,6 +399,76 @@ function overByOver(st) {
       }).join('')}
     </div></div>`;
 }
+
+/* ------------------------------------------------------------------ *
+ * Sharing
+ * ------------------------------------------------------------------ */
+
+async function shareSheet(m) {
+  if (!m) return;
+  const v = await sheet(`
+    <h3 class="text-lg font-bold text-white mb-4">Share this scorecard</h3>
+    <div class="grid gap-2">
+      <button data-share="image" class="w-full flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3.5 py-3 text-left hover:bg-white/10 active:scale-[.99] transition">
+        <span class="text-lg w-6 text-center">🖼️</span>
+        <span class="flex-1"><span class="block text-sm font-semibold text-white">As a picture</span>
+        <span class="block text-[11px] text-slate-500">Best for WhatsApp — it gets forwarded</span></span>
+        <span class="text-slate-600">›</span></button>
+      <button data-share="text" class="w-full flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3.5 py-3 text-left hover:bg-white/10 active:scale-[.99] transition">
+        <span class="text-lg w-6 text-center">📋</span>
+        <span class="flex-1"><span class="block text-sm font-semibold text-white">As text</span>
+        <span class="block text-[11px] text-slate-500">Full card, batting and bowling</span></span>
+        <span class="text-slate-600">›</span></button>
+    </div>
+    <button class="btn-ghost w-full mt-4" data-close="__dismiss">Cancel</button>`, { grab: false });
+
+  if (!v || !v.startsWith('share:')) return;
+  if (v.slice(6) === 'text') {
+    const t = fullText(m);
+    if (navigator.share) { try { await navigator.share({ text: t }); return; } catch { /* cancelled */ } }
+    toast(await copyText(t) ? 'Scorecard copied' : 'Could not copy', 'ok');
+    return;
+  }
+  await sharePicture(m);
+}
+
+async function sharePicture(m) {
+  toast('Drawing the scorecard…', 'info', 1400);
+  let blob;
+  try {
+    blob = await scorecardImage(m);
+  } catch (err) {
+    console.error('[share] could not draw the scorecard', err);
+    toast('Could not draw the picture — sharing as text instead', 'warn', 3500);
+    const t = fullText(m);
+    toast(await copyText(t) ? 'Scorecard copied' : 'Could not copy', 'ok');
+    return;
+  }
+
+  const file = new File([blob], imageFileName(m), { type: 'image/png' });
+
+  // The share sheet is the point on a phone; a download is the desktop fallback.
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Scorecard' });
+      return;
+    } catch (err) {
+      if (err?.name === 'AbortError') return;      // the person changed their mind
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast('Scorecard image saved', 'ok');
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-share]');
+  if (b) closeSheet('share:' + b.dataset.share);
+});
 
 /* ------------------------------------------------------------------ */
 

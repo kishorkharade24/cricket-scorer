@@ -19,6 +19,7 @@ function empty() {
     tournaments: [],  // { id, name, format, teamIds, overs, ..., fixtures:[matchId|placeholder] }
     settings: {
       theme: 'dark',
+      countSuperOverStats: true,
       defaultOvers: 20,
       defaultPlayers: 11,
       celebrate: true,
@@ -114,11 +115,40 @@ if (typeof window !== 'undefined') {
 export function teams() { return data().teams; }
 export function team(id) { return data().teams.find(t => t.id === id) || null; }
 
+/**
+ * A short code for scorecards. Taking the first four letters turns "Team A"
+ * and "Team B" into two teams both called TEAM, so try a few shapes and take
+ * the first that is not already in use.
+ */
+export function shortCodeFor(name, taken = new Set()) {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return 'TM';
+  const first = words[0], last = words[words.length - 1];
+
+  const tries = [];
+  // "Team A" -> TEA, "Team B" -> TEB: the distinguishing bit is the last word.
+  if (words.length > 1 && last.length <= 2) tries.push(first.slice(0, Math.max(1, 3 - last.length)) + last);
+  // "Mumbai Mavericks" -> MUM, which is what people actually say.
+  tries.push(first.slice(0, 3));
+  // Falling back to initials only when the natural code is already taken.
+  if (words.length > 1) tries.push(words.map(w => w[0]).join(''));
+  tries.push(first.slice(0, 4), String(name).replace(/\s+/g, '').slice(0, 4));
+
+  for (const t of tries) {
+    const code = t.toUpperCase().slice(0, 4);
+    if (code.length >= 2 && !taken.has(code)) return code;
+  }
+  const base = (tries[0] || first).toUpperCase().slice(0, 3);
+  for (let i = 2; i < 100; i++) if (!taken.has(base + i)) return base + i;
+  return base;
+}
+
 export function addTeam({ name, short, accent }) {
+  const taken = new Set(data().teams.map(t2 => t2.short));
   const t = {
     id: uid('tm'),
     name: name.trim(),
-    short: (short || name).trim().slice(0, 4).toUpperCase(),
+    short: short ? short.trim().slice(0, 4).toUpperCase() : shortCodeFor(name, taken),
     accent: accent || 'emerald',
     players: [],
     createdAt: Date.now()
@@ -162,7 +192,7 @@ export function findOrCreateTeam(name, accentHint) {
     ? accentHint
     : ACCENT_KEYS.reduce((best, k) => ((used.get(k) || 0) < (used.get(best) || 0) ? k : best), ACCENT_KEYS[0]);
 
-  return addTeam({ name: wanted, short: wanted, accent });
+  return addTeam({ name: wanted, accent });
 }
 
 /** Same idea for players within one squad. */

@@ -21,6 +21,7 @@ const SHELL = [
   './src/js/pwa.js',
   './src/js/theme.js',
   './src/js/balance.js',
+  './src/js/share-image.js',
   './src/js/views/home.js',
   './src/js/views/matches.js',
   './src/js/views/teams.js',

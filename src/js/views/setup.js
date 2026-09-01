@@ -35,7 +35,7 @@ function fresh(ctx) {
     xi: {},
     rules: {
       widePenalty: 1, noBallPenalty: 1, freeHitOnNoBall: true, lastManStands: false,
-      noLbw: false, retireAt: 0, extraBats: 0, everyoneBowls: false
+      noLbw: false, retireAt: 0, extraBats: 0, everyoneBowls: false, zones: []
     }
   };
 }
@@ -104,6 +104,21 @@ export default {
       d.maxOversPerBowler = Math.max(1, Math.min(d.overs, +e.target.value || 1));
     });
     root.querySelector('#venue')?.addEventListener('input', e => { d.venue = e.target.value; });
+
+    root.querySelector('[data-zadd]')?.addEventListener('click', () => {
+      d.rules.zones = [...(d.rules.zones || []), { label: '', runs: (d.rules.zones?.length || 0) + 1 }];
+      rr();
+    });
+    root.querySelectorAll('[data-zdel]').forEach(b => b.addEventListener('click', () => {
+      d.rules.zones.splice(+b.dataset.zdel, 1); rr();
+    }));
+    root.querySelectorAll('[data-zname]').forEach(i => i.addEventListener('input', e => {
+      d.rules.zones[+i.dataset.zname].label = e.target.value;
+    }));
+    root.querySelectorAll('[data-zruns]').forEach(i => i.addEventListener('change', e => {
+      d.rules.zones[+i.dataset.zruns].runs = Math.max(1, Math.min(12, +e.target.value || 1));
+      rr();
+    }));
     root.querySelectorAll('[data-rule]').forEach(b => b.addEventListener('click', () => {
       const k = b.dataset.rule;
       const pen = k.match(/^__(wide|nb)(\d)$/);
@@ -230,6 +245,19 @@ function step1(teams) {
           ${toggle('everyoneBowls', 'Everyone bowls an over', 'Warns you when players still need a turn')}
           ${toggle('__extraBat', 'Short side bats one player twice', 'Their best batter gets a second knock')}
         </div>
+        <p class="label mt-4">Fixed-run zones</p>
+        <p class="text-[11px] text-slate-500 leading-snug mb-2">Hit a marked part of the ground and it is worth a set number of runs.
+          The batters do not run, so the same one keeps the strike.</p>
+        <div class="grid gap-2">
+          ${(d.rules.zones || []).map((z, i) => `<div class="flex items-center gap-2">
+            <input data-zname="${i}" class="field !py-2 text-sm flex-1" value="${esc(z.label || '')}" placeholder="e.g. Side net" maxlength="18">
+            <input data-zruns="${i}" type="number" min="1" max="12" value="${+z.runs || 1}" class="field !py-2 w-16 text-center num">
+            <button data-zdel="${i}" class="h-9 w-9 shrink-0 rounded-lg bg-white/5 border border-white/10 text-slate-500 hover:text-rose-300 grid place-items-center active:scale-90 transition">✕</button>
+          </div>`).join('')}
+        </div>
+        <button data-zadd class="mt-2 w-full rounded-xl border border-dashed border-white/15 py-2.5 text-xs font-semibold text-slate-400 hover:text-emerald-300 hover:border-emerald-400/40 transition">
+          + Add a zone</button>
+
         <p class="label mt-4">Retire a batter on</p>
         <div class="flex flex-wrap gap-2">
           ${[0, 25, 30, 50].map(n => `<button data-rule="__retire${n}" class="btn-chip ${d.rules.retireAt === n ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${n === 0 ? 'Off' : n}</button>`).join('')}

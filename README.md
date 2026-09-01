@@ -182,6 +182,12 @@ service worker requires.
 - Retire a batter, award penalty runs, swap the strike, change bowler mid-over,
   declare an innings closed, or abandon the match.
 
+### Sharing
+Any scorecard can go out as a **picture** — 1080px wide, drawn on a canvas with
+no library, sized so WhatsApp will not crop it badly. Scores, the result, top
+three batters and best two bowlers per innings, and the player of the match.
+Text sharing is still there for anyone who wants the full card.
+
 ### Scorecards
 Full batting card with dismissal wording (`c & b Bumrah`, `st Pant b Chahal`),
 extras breakdown, bowling figures with maidens and economy, fall of wickets,
@@ -227,6 +233,8 @@ fifties, hundreds, ducks, 3- and 5-wicket hauls, catches, stumpings, run outs).
 | Retire on N | You are asked once, on the ball that takes a batter past the mark. They keep their runs and can come back if the side runs short. |
 | Second knock | A short side can name one player to bat twice. Both knocks add into the same record, and the side is all out one wicket later. |
 | Everyone bowls | Optional. The bowler list puts those still waiting first and warns when there are fewer overs left than players still to bowl. |
+| Fixed-run zones | Many turf grounds award set runs for hitting a marked area — a net, a wall, past a line. Name them and give each a value; the runs go to the batter but nobody runs, so the strike does not change. Marked with a `z` in the over strip. |
+| Super Over stats | Official records leave them out. Turf sides usually want them in, so it is a setting, on by default. League points are never affected. |
 | Tied matches | Stay a tie for league points. To settle a knockout you can play a full **Super Over** — one over each, two wickets, scored ball by ball, with the side that chased batting first — or just record a bowl-out / boundary-count / coin-toss winner. A Super Over is linked to the match it decided and is left out of career figures and the points table. |
 
 Configurable per match: overs, players per side, overs per bowler, wide and
