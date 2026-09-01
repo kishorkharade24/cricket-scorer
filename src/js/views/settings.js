@@ -1,6 +1,6 @@
 /* Settings — defaults, backup, and the honest storage warning. */
 
-import { esc, download, toast, confirmDlg, sheet, fmtDateTime } from '../util.js';
+import { esc, download, toast, confirmDlg, sheet, fmtDateTime, copyText } from '../util.js';
 import * as store from '../store.js';
 import { section } from '../ui.js';
 import { promptInstall, checkForUpdate } from '../pwa.js';
@@ -82,6 +82,10 @@ export default {
           <span class="text-lg">🔄</span>
           <span class="flex-1"><span class="block text-sm font-semibold text-white">Check for updates</span>
           <span class="block text-[11px] text-slate-500">Fetches the newest version if one has been published</span></span></button>
+        <button data-act="display" class="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-white/[.03] transition">
+          <span class="text-lg">📐</span>
+          <span class="flex-1"><span class="block text-sm font-semibold text-white">Screen fit</span>
+          <span class="block text-[11px] text-slate-500">What this device gives the app, for chasing layout gaps</span></span></button>
         <button data-act="about" class="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-white/[.03] transition">
           <span class="text-lg">ℹ️</span>
           <span class="flex-1"><span class="block text-sm font-semibold text-white">Scoring rules used</span>
@@ -150,6 +154,7 @@ export default {
 
     root.querySelector('[data-act="install"]')?.addEventListener('click', promptInstall);
     root.querySelector('[data-act="about"]')?.addEventListener('click', aboutSheet);
+    root.querySelector('[data-act="display"]')?.addEventListener('click', displaySheet);
 
     root.querySelector('[data-act="update"]')?.addEventListener('click', async e => {
       const btn = e.currentTarget;
@@ -189,6 +194,61 @@ function toggle(key, title, sub, on) {
     <span class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${on ? 'bg-emerald-500' : 'bg-white/15'}">
       <span class="block h-5 w-5 rounded-full bg-pure shadow transition-transform ${on ? 'translate-x-4' : ''}"></span></span>
   </button>`;
+}
+
+/**
+ * Layout gaps on a phone are hard to chase from a desktop browser. This reports
+ * what the device actually hands the app, so the numbers can be read off rather
+ * than guessed at.
+ */
+async function displaySheet() {
+  const shell = document.body.getBoundingClientRect();
+  const nav = document.querySelector('#nav')?.getBoundingClientRect();
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;' +
+    'padding-top:env(safe-area-inset-top,0px);padding-right:env(safe-area-inset-right,0px);' +
+    'padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const safe = {
+    top: parseFloat(cs.paddingTop) || 0, right: parseFloat(cs.paddingRight) || 0,
+    bottom: parseFloat(cs.paddingBottom) || 0, left: parseFloat(cs.paddingLeft) || 0
+  };
+  probe.remove();
+
+  const gap = nav ? Math.round(window.innerHeight - nav.bottom) : null;
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches ||
+                     window.navigator.standalone === true;
+
+  const row = (k, v, warn) => `<div class="flex justify-between py-1.5 border-b border-white/[.05] text-[13px]">
+    <span class="text-slate-500">${esc(k)}</span>
+    <span class="num font-semibold ${warn ? 'text-rose-300' : 'text-white'}">${esc(v)}</span></div>`;
+
+  const text = [
+    `window ${window.innerWidth}x${window.innerHeight}`,
+    `screen ${window.screen?.width}x${window.screen?.height} @${window.devicePixelRatio}x`,
+    `visualViewport ${Math.round(window.visualViewport?.width || 0)}x${Math.round(window.visualViewport?.height || 0)}`,
+    `shell ${Math.round(shell.width)}x${Math.round(shell.height)}`,
+    `safe area t${safe.top} r${safe.right} b${safe.bottom} l${safe.left}`,
+    `gap under bar ${gap}`,
+    `standalone ${standalone}`
+  ].join('\n');
+
+  const v = await sheet(`
+    <h3 class="text-lg font-bold text-white mb-1">Screen fit</h3>
+    <p class="text-xs text-slate-500 mb-4">The shell should be exactly the window height, and the gap under the bar should be 0.</p>
+    ${row('Window', `${window.innerWidth} x ${window.innerHeight}`)}
+    ${row('Visual viewport', `${Math.round(window.visualViewport?.width || 0)} x ${Math.round(window.visualViewport?.height || 0)}`)}
+    ${row('Screen', `${window.screen?.width} x ${window.screen?.height} @${window.devicePixelRatio}x`)}
+    ${row('App shell', `${Math.round(shell.width)} x ${Math.round(shell.height)}`, Math.round(shell.height) !== window.innerHeight)}
+    ${row('Gap under the bar', gap == null ? '—' : `${gap} px`, !!gap)}
+    ${row('Safe area', `${safe.top} / ${safe.right} / ${safe.bottom} / ${safe.left}`)}
+    ${row('Installed to home screen', standalone ? 'yes' : 'no')}
+    <div class="mt-5 grid grid-cols-2 gap-3">
+      <button class="btn-ghost" data-close="__dismiss">Close</button>
+      <button class="btn-primary" data-close="copy">Copy</button>
+    </div>`, { grab: false });
+  if (v === 'copy') toast(await copyText(text) ? 'Copied — paste it to me' : 'Could not copy', 'ok');
 }
 
 async function aboutSheet() {

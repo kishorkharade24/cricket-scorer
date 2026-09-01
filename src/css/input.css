@@ -70,10 +70,12 @@
     overflow: hidden;
   }
 
-  /* The shell is taken out of flow, so html paints anything behind it. */
+  /* The shell is taken out of flow, so html paints anything behind it. Match
+     the bar's colour rather than the page's: if any sliver of it is ever
+     visible below the navigation, it should read as part of the bar. */
   html {
     height: 100%;
-    background-color: rgb(var(--c-bg-950));
+    background-color: rgb(var(--c-chrome));
   }
 
   body {
@@ -149,6 +151,7 @@
   .nav-item svg { @apply h-[19px] w-[19px]; }
   .nav-item.active { @apply text-emerald-400; }
   .safe-b { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
