@@ -2,7 +2,7 @@
 
 import { esc, fixed, oversOf, shortName, copyText, toast, fmtDate, sheet, closeSheet, initials } from '../util.js';
 import * as store from '../store.js';
-import { badge, empty, teamName, teamShort, nameOf, tabs, ballChip, ICON, iconBtn } from '../ui.js';
+import { badge, empty, teamName, teamShort, nameOf, ballChip, ICON, iconBtn } from '../ui.js';
 import * as E from '../engine.js';
 import { statesOf } from '../stats.js';
 import { scorecardImage, imageFileName } from '../share-image.js';
@@ -40,9 +40,7 @@ export default {
     return `
       ${header(m, states, res)}
       ${tieBreakCard(m)}
-      ${states.length > 1 ? tabs(states.map((s, i) => ({
-          key: String(i), label: `${store.team(s.battingTeamId)?.short || 'INN'} ${s.runs}/${s.wickets}`
-        })), String(tab)) : ''}
+      ${states.length > 1 ? inningsTabs(states, tab) : ''}
       <div class="mt-4 space-y-4">
         ${battingTable(st)}
         ${bowlingTable(st)}
@@ -274,6 +272,29 @@ document.addEventListener('click', e => {
   const win = e.target.closest('[data-tbwin]');
   if (win) closeSheet('tbwin:' + win.dataset.tbwin);
 });
+
+/**
+ * Switching innings was a pair of pills reading "KOL 227/8", which told you
+ * very little about whose card you were about to read. Proper tabs, with the
+ * team's name above its score and an underline on the one you are looking at.
+ */
+function inningsTabs(states, active) {
+  return `<div class="mt-4 flex border-b border-white/10">
+    ${states.map((st, i) => {
+      const on = i === active;
+      return `<button data-tab="${i}" class="flex-1 min-w-0 px-2 pb-2.5 pt-1 text-left border-b-2 -mb-px transition ${
+        on ? 'border-emerald-400' : 'border-transparent'}">
+        <span class="flex items-center gap-2">
+          ${badge(st.battingTeamId, 'sm')}
+          <span class="min-w-0">
+            <span class="block truncate text-[12px] font-bold ${on ? 'text-white' : 'text-slate-500'}">${esc(teamName(st.battingTeamId))}</span>
+            <span class="block num text-[13px] font-extrabold ${on ? 'text-white' : 'text-slate-500'}">${st.runs}/${st.wickets}
+              <span class="text-[10px] font-medium text-slate-500">(${st.oversText})</span></span>
+          </span>
+        </span></button>`;
+    }).join('')}
+  </div>`;
+}
 
 function header(m, states, res) {
   const t = m.tournamentId ? store.tournament(m.tournamentId) : null;

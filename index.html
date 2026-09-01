@@ -8,7 +8,7 @@
 <meta name="author" content="Kishor Kharade">
 <meta name="theme-color" content="#05080f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Cricket Scorer">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
@@ -31,10 +31,10 @@
   })();
 </script>
 </head>
-<body class="min-h-screen">
+<body class="app-shell">
 
   <!-- top bar -->
-  <header id="topbar" class="sticky top-0 z-40 chrome chrome-top"
+  <header id="topbar" class="shrink-0 z-40 chrome chrome-top"
           style="padding-top:env(safe-area-inset-top,0px)">
     <div class="mx-auto max-w-3xl px-4 h-14 flex items-center gap-3">
       <button id="backBtn" class="hidden shrink-0 h-9 w-9 rounded-xl bg-white/5 border border-white/10 grid place-items-center active:scale-90 transition" aria-label="Go back">
@@ -66,10 +66,12 @@
   </header>
 
   <!-- routed content -->
-  <main id="app" class="mx-auto max-w-3xl px-4 pb-28 pt-4"></main>
+  <main id="scroller" class="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+    <div id="app" class="mx-auto max-w-3xl px-4 pt-4 pb-8"></div>
+  </main>
 
   <!-- bottom navigation -->
-  <nav id="nav" class="fixed bottom-0 inset-x-0 z-40 chrome chrome-bottom safe-b">
+  <nav id="nav" class="shrink-0 z-40 chrome chrome-bottom safe-b">
     <div class="mx-auto max-w-3xl grid grid-cols-5">
       <a href="#/" data-nav="home" class="nav-item">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>

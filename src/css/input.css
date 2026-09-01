@@ -57,6 +57,18 @@
     --c-chrome-edge-alpha: .12;
   }
   html { -webkit-text-size-adjust: 100%; }
+  /* One screen, three rows: bar, scrolling content, bar. The bars are laid out
+     rather than positioned, which is the only way to be certain they stay put
+     on iOS, where a fixed element tracks a viewport that moves as the address
+     bar hides. */
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
   body {
     @apply bg-ink-950 text-slate-200 font-sans antialiased;
     background-image:
@@ -65,6 +77,7 @@
       radial-gradient(800px 500px at 50% 108%, rgb(var(--c-glow-c) / var(--c-glow-alpha)), transparent 62%);
     background-attachment: fixed;
     overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
     color-scheme: dark;
   }
   html[data-theme='light'] body { color-scheme: light; }

@@ -182,6 +182,13 @@ service worker requires.
 - Retire a batter, award penalty runs, swap the strike, change bowler mid-over,
   declare an innings closed, or abandon the match.
 
+### The shell
+Header, a scrolling middle, then the navigation bar — laid out as a flex column
+rather than positioned. Nothing is `position: fixed`, because on iOS a fixed
+element tracks a viewport that moves as the address bar hides, which is how a
+bottom bar ends up floating in the middle of a page. The bars carry their own
+surface tone so content clearly passes behind them.
+
 ### Reading results
 The results list is deliberately plain: two teams, two scores, who won. The
 competition name is a heading over the group rather than a line on every card,

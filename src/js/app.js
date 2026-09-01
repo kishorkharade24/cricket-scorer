@@ -88,8 +88,9 @@ export function render() {
         <a href="#/" class="btn-ghost mt-4">Back to home</a></div>`;
   }
   root.innerHTML = html + CREDIT;
+  const scroller = $('#scroller');
+  if (scroller) scroller.scrollTop = 0;
   root.scrollTop = 0;
-  window.scrollTo(0, 0);
 
   // shell chrome
   $('#pageTitle').textContent = val(current.title, ctx) || 'Cricket Scorer';
@@ -108,8 +109,6 @@ export function render() {
 
   const hideNav = val(current.hideNav, ctx);
   $('#nav').classList.toggle('hidden', !!hideNav);
-  $('#app').classList.toggle('pb-28', !hideNav);
-  $('#app').classList.toggle('pb-6', !!hideNav);
 
   const navKey = val(current.nav, ctx);
   $$('#nav [data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === navKey));
