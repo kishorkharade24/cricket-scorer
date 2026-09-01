@@ -1,0 +1,65 @@
+{
+  "name": "Cricket Scorer \u2014 offline scoring & tournaments",
+  "short_name": "Cricket Scorer",
+  "description": "Ball-by-ball cricket scoring with full scorecards, tournaments, points tables and player stats. Works entirely offline.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait",
+  "background_color": "#05080f",
+  "theme_color": "#05080f",
+  "categories": [
+    "sports",
+    "utilities",
+    "productivity"
+  ],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New match",
+      "short_name": "New",
+      "url": "./index.html#/match/new"
+    },
+    {
+      "name": "Tournaments",
+      "short_name": "Cups",
+      "url": "./index.html#/tournaments"
+    },
+    {
+      "name": "Player stats",
+      "short_name": "Stats",
+      "url": "./index.html#/stats"
+    }
+  ]
+}

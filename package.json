@@ -1,0 +1,22 @@
+{
+  "name": "cricket-scorer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline-first PWA cricket scoring app with tournaments. No server, no backend, localStorage only.",
+  "scripts": {
+    "css": "tailwindcss -c ./tailwind.config.cjs -i ./src/css/input.css -o ./src/css/app.css --minify",
+    "watch": "tailwindcss -c ./tailwind.config.cjs -i ./src/css/input.css -o ./src/css/app.css --watch",
+    "build": "npm run css",
+    "serve": "http-server -p 4173 -a 127.0.0.1 -c-1 .",
+    "serve:py": "python3 -m http.server 4173 --bind 127.0.0.1",
+    "tunnel": "ngrok http 4173",
+    "dev": "node scripts/dev.mjs",
+    "release": "npm run css && node scripts/release.mjs",
+    "test": "node test/engine.test.mjs",
+    "test:views": "node test/views.test.mjs"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  },
+  "type": "module"
+}

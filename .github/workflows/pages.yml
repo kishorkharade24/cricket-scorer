@@ -1,0 +1,71 @@
+# Builds and publishes the app to GitHub Pages on every push to main.
+#
+# Doing it here rather than serving the branch directly means two things can
+# never go stale: the Tailwind CSS is rebuilt from source, and the service
+# worker gets a fresh build stamp so browsers actually pick the new version up.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # lets you redeploy by hand from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; always finish the newest one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install the build tool (Tailwind only — nothing ships to the browser)
+        run: npm ci
+
+      - name: Check the scoring engine still behaves
+        run: |
+          npm test
+          npm run test:views
+
+      - name: Build the stylesheet
+        run: npm run css
+
+      - name: Stamp a new service-worker build id
+        run: node scripts/release.mjs
+
+      - name: Assemble the site (source, tests and tooling stay out of it)
+        run: |
+          mkdir -p _site
+          cp index.html manifest.webmanifest sw.js .nojekyll _site/
+          cp -r icons _site/
+          mkdir -p _site/src/css _site/src/js
+          cp src/css/app.css _site/src/css/
+          cp -r src/js/. _site/src/js/
+          echo "--- published files ---"
+          find _site -type f | sort
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
