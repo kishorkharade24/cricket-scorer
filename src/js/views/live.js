@@ -24,7 +24,7 @@ export default {
 
   render() {
     if (step === 'watching' && live.viewer.lastBundle) return board(live.viewer.lastBundle);
-    if (step === 'reply') return waiting();
+    if (step === 'reply' || step === 'asking') return waiting();
     return landing();
   },
 
@@ -38,15 +38,15 @@ export default {
         closeSheet('__dismiss');          // jump to the score the moment it connects
         rr();
       }
-      if (st === 'failed' && step === 'reply') { step = 'stuck'; closeSheet('__dismiss'); rr(); }
+      if (st === 'failed' && (step === 'reply' || step === 'asking')) { step = 'stuck'; closeSheet('__dismiss'); rr(); }
       if (st === 'closed' && step === 'watching') { step = 'lost'; rr(); }
     };
     // Waiting forever helps nobody: if the channel has not opened well after
     // both codes were exchanged, say so and say what usually fixes it.
     clearTimeout(mount._t);
-    if (step === 'reply') mount._t = setTimeout(() => {
-      if (step === 'reply') { step = 'stuck'; rr(); }
-    }, 30000);
+    if (step === 'reply' || step === 'asking') mount._t = setTimeout(() => {
+      if (step === 'reply' || step === 'asking') { step = 'stuck'; rr(); }
+    }, 45000);
     function mount() {}
     clearInterval(tick);
     tick = setInterval(() => {
@@ -76,6 +76,23 @@ async function join(ctx) {
     subtitle: 'On the scoring phone: menu ⋮ → Live scoreboard → Add a viewer.'
   });
   if (!code) return;
+
+  let kind;
+  try { kind = (await live.decodeBlob(code)).t; }
+  catch (err) { toast(err.message || 'That code did not work', 'error'); return; }
+
+  if (kind === 'room') {
+    step = 'asking';
+    ctx.render();
+    try {
+      await live.viewerJoinRoom(code);
+    } catch (err) {
+      toast(err.message || 'Could not ask to join', 'error', 6000);
+      step = 'idle'; ctx.render();
+    }
+    return;                        // onState 'open' flips this to the scoreboard
+  }
+
   let reply;
   try {
     reply = await live.viewerJoin(code);
@@ -86,8 +103,8 @@ async function join(ctx) {
   step = 'reply';
   ctx.render();
   await showCodeSheet({
-    title: 'Hold this up to the scorer’s phone',
-    subtitle: 'Their screen is already watching for it — no tapping needed on either side. You will jump to the score the moment it connects.',
+    title: 'Step 2 — show this reply to the scorer',
+    subtitle: 'Hold it up to their camera and KEEP it there until you jump to the score. Scorer on a computer without a camera? Tap “Copy the code instead” below and send it to them — they paste it on their screen.',
     code: reply,
     nextLabel: 'Close'
   });
@@ -103,6 +120,7 @@ function landing() {
       <h2 class="text-lg font-bold text-white text-center">The phones can’t reach each other</h2>
       <p class="mt-2 text-sm text-slate-400 leading-relaxed">The codes worked, but no direct connection formed. In order of likelihood:</p>
       <ul class="mt-3 space-y-2 text-[13px] text-slate-400 leading-snug list-disc pl-5">
+        <li><b class="text-slate-200">Most often: the scorer never captured your reply.</b> Try again and keep the reply code in front of their camera until their screen says Connected — or send them the copied code to paste.</li>
         <li>The two devices are on <b class="text-slate-200">different networks</b> — put both on the same WiFi, or join the scorer’s hotspot.</li>
         <li>Venue WiFi with <b class="text-slate-200">client isolation</b> blocks phone-to-phone traffic — the scorer’s hotspot gets around it.</li>
         <li>A computer’s <b class="text-slate-200">firewall</b> is blocking local connections.</li>
@@ -140,10 +158,11 @@ function landing() {
 }
 
 function waiting() {
+  const asking = step === 'asking';
   return `<div class="card p-6 text-center animate-fade-in">
     <div class="mx-auto h-10 w-10 rounded-full border-2 border-emerald-400/30 border-t-emerald-400 animate-spin mb-4"></div>
-    <p class="text-sm font-semibold text-white">Waiting for the scorer…</p>
-    <p class="mt-1 text-xs text-slate-500">Once they scan your reply, the score appears here.</p>
+    <p class="text-sm font-semibold text-white">${asking ? 'Asked to join' : 'Waiting for the scorer…'}</p>
+    <p class="mt-1 text-xs text-slate-500">${asking ? 'The scorer just taps Accept — the score appears here by itself.' : 'Once they scan your reply, the score appears here.'}</p>
     <button data-act="rejoin" class="btn-ghost mt-5 text-xs">Start over</button>
   </div>`;
 }

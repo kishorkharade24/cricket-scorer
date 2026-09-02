@@ -207,24 +207,25 @@ anything being scored right now sorts to the top, and the winning side is the
 one that is not dimmed. Toss, venue and the rules a match was played under sit
 at the foot of its scorecard, out of the way.
 
-### Live scoreboard (phone to phone, no server)
-One phone scores; nearby phones watch it live. The connection is WebRTC
-peer-to-peer with **no server anywhere** — not even for the introduction, which
-travels as a QR code (or copy-paste): the scorer shows a code, the viewer scans
-it and shows a reply, the scorer scans that back. Connected. From then on every
-ball lands on the watching phones as it is scored.
+### Live scoreboard (one scan to join)
+One phone scores; nearby phones watch it live. Joining is one scan: the scorer
+opens 📡, the viewer scans the QR, the scorer taps **Accept** — the score
+appears on the viewer's phone by itself. One QR serves any number of viewers.
 
-It works on a shared WiFi or the scorer's hotspot, with no internet at all, and
-deliberately cannot work across the internet (no STUN/TURN is configured).
-Venue WiFi with client isolation will block it — use the hotspot. A watching
-phone that locks its screen drops off and rejoins with a fresh scan; the app
-holds a wake lock on both sides to keep that rare.
+The score itself always flows **phone-to-phone over the local network** — it
+never touches a server. The one thing that may cross the internet is the
+~300-byte connection handshake, sent through a public message relay
+([ntfy.sh](https://ntfy.sh)) **encrypted with a key that exists only inside
+the QR** — the relay carries ciphertext on a random topic and can read none of
+it. With no internet at all, the station's **Offline mode** falls back to a
+two-QR exchange (the viewer shows a reply code; the scorer's camera or a paste
+box takes it) that needs nothing but the two devices.
 
-One tap each: the scorer opens 📡 on the scoring screen, which shows the QR
-**and watches for replies with its own camera**; each viewer opens Home →
-**Watch a match nearby**, scans, then just holds up the reply their phone
-shows. No further taps on either side — the code rotates automatically for the
-next viewer. Copy/paste buttons cover devices without a usable camera.
+It works on shared WiFi or the scorer's hotspot. Venue WiFi with client
+isolation blocks the phone-to-phone leg — the hotspot gets around it. A
+watching phone that locks its screen drops off and rejoins with a fresh scan;
+the app holds a wake lock on both sides to keep that rare, and a viewer that
+cannot connect is told what each side offered so the culprit is visible.
 
 ### Sharing
 Any scorecard can go out as a **picture** — 1080px wide, drawn on a canvas with

@@ -1,6 +1,6 @@
 /* Live scoring — the screen a scorer actually uses. */
 
-import { esc, fixed, oversOf, sheet, closeSheet, toast, haptic, confirmDlg, initials, shortName, promptDlg, copyText } from '../util.js';
+import { esc, fixed, oversOf, sheet, closeSheet, toast, haptic, confirmDlg, initials, shortName, copyText } from '../util.js';
 import * as store from '../store.js';
 import { badge, ballChip, empty, teamName, nameOf, ICON, iconBtn, livePill } from '../ui.js';
 import * as E from '../engine.js';
@@ -833,12 +833,88 @@ async function liveMenu(m, ctx) {
 }
 
 /**
+ * The join screen. With internet (a hotspot counts) the handshake takes the
+ * encrypted-relay shortcut: viewers scan one QR and the scorer just taps
+ * Accept. With none, the two-QR camera flow below still works.
+ */
+async function joinStation(m, ctx, forceOffline = false) {
+  const online = !forceOffline && !window.__csForceOffline && await live.relayCheck();
+  if (!online) return cameraStation(m, ctx);
+
+  busy = true;
+  const p = sheet(`
+    <h3 class="text-lg font-bold text-white">Add viewers</h3>
+    <ol class="mt-2 space-y-1 text-[12px] text-slate-400 leading-snug list-decimal pl-4">
+      <li>On their phone: Home → <b class="text-slate-200">Watch a match nearby</b> → scan this code.</li>
+      <li>When they appear below, tap <b class="text-slate-200">Accept</b>. That is all.</li>
+    </ol>
+    <div class="mt-3 rounded-2xl bg-pure p-2.5 grid place-items-center">
+      <canvas id="stQr" class="w-full max-w-[280px] aspect-square [image-rendering:pixelated]"></canvas>
+    </div>
+    <div id="stReqs" class="grid gap-2 mt-3"></div>
+    <p id="stStatus" class="mt-2 text-center text-[11px] font-semibold text-slate-400"></p>
+    <p class="mt-1 text-center text-[10px] text-slate-600">One QR for any number of viewers · the score itself never leaves the ground</p>
+    <div class="mt-3 grid grid-cols-3 gap-2">
+      <button id="stCopy" class="btn-ghost text-xs">Copy code</button>
+      <button class="btn-ghost text-xs" data-close="offline">Offline mode</button>
+      <button class="btn-primary text-xs" data-close="done">Done</button>
+    </div>`, { grab: false });
+
+  const status = t => { const el = document.querySelector('#stStatus'); if (el) el.textContent = t; };
+  const count = () => `${live.viewerCount()} watching`;
+  live.host.onChange = () => {
+    status(`${count()}`);
+    if (location.hash.includes(m.id)) ctx.render();
+  };
+
+  let code = '';
+  try {
+    code = await live.hostRoom(m.id, {
+      onRequest: req => {
+        const box = document.querySelector('#stReqs');
+        if (!box) { req.reject(); return; }
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-3 py-2.5 animate-pop';
+        row.innerHTML = `<span class="flex-1 text-[13px] font-semibold text-white">A viewer asks to join</span>
+          <button class="btn-primary !px-3 !py-1.5 text-xs" data-req="yes">Accept</button>
+          <button class="btn-ghost !px-3 !py-1.5 text-xs" data-req="no">Ignore</button>`;
+        row.querySelector('[data-req="yes"]').addEventListener('click', async () => {
+          row.remove();
+          status('Connecting…');
+          try { await req.accept(); haptic(20); }
+          catch (err) { status(err.message || 'Could not connect'); }
+        });
+        row.querySelector('[data-req="no"]').addEventListener('click', () => { req.reject(); row.remove(); });
+        box.appendChild(row);
+        haptic(15);
+      }
+    });
+    const c = document.querySelector('#stQr');
+    if (c) { await renderQR(code, { canvas: c }); c.dataset.code = code; }
+    status(`${count()} · waiting for someone to scan…`);
+  } catch (err) {
+    console.error('[live]', err);
+    closeSheet('__dismiss'); busy = false;
+    toast('The join service is unreachable — using offline mode', 'warn');
+    return joinStation(m, ctx, true);
+  }
+  document.querySelector('#stCopy')?.addEventListener('click', async () => {
+    toast(await copyText(code) ? 'Code copied — send it any way you like' : 'Could not copy', 'ok');
+  });
+
+  const v = await p;
+  live.closeRoom();          // joining closes; the broadcast itself keeps running
+  busy = false;
+  if (v === 'offline') return joinStation(m, ctx, true);
+}
+
+/**
  * One screen for any number of viewers: the QR on top, the camera underneath
  * already watching for replies. The scorer taps once and then only holds the
  * phone; each viewer scans, their reply appears on their screen, this camera
  * reads it, and the code rotates for the next person.
  */
-async function joinStation(m, ctx) {
+async function cameraStation(m, ctx) {
   busy = true;
   let open = true;
   let cam = null;
@@ -846,18 +922,22 @@ async function joinStation(m, ctx) {
 
   const p = sheet(`
     <h3 class="text-lg font-bold text-white">Add viewers</h3>
-    <p class="text-xs text-slate-500 mt-1 leading-snug">On their phone: Home → <b class="text-slate-300">Watch a match nearby</b> → scan this.
-      Then they hold up their reply — the camera below reads it by itself.</p>
+    <ol class="mt-2 space-y-1 text-[12px] text-slate-400 leading-snug list-decimal pl-4">
+      <li>On their phone: Home → <b class="text-slate-200">Watch a match nearby</b> → scan this code.</li>
+      <li>A <b class="text-slate-200">reply code</b> appears on their phone.</li>
+      <li>They hold that reply up to the camera below <b class="text-slate-200">until this says Connected</b> —
+        or they tap <b class="text-slate-200">Copy the code</b> and you paste it here.</li>
+    </ol>
     <div class="mt-3 rounded-2xl bg-pure p-2.5 grid place-items-center">
       <canvas id="stQr" class="w-full max-w-[280px] aspect-square [image-rendering:pixelated]"></canvas>
     </div>
-    <div class="mt-3 rounded-xl overflow-hidden bg-black relative" style="height:140px">
+    <div class="mt-3 rounded-xl overflow-hidden bg-black relative" style="height:170px">
       <video id="stVid" muted playsinline class="w-full h-full object-cover"></video>
       <p id="stStatus" class="absolute inset-x-2 bottom-2 text-center text-[11px] font-semibold text-white drop-shadow"></p>
     </div>
-    <div class="mt-3 grid grid-cols-3 gap-2">
-      <button id="stCopy" class="btn-ghost text-xs">Copy code</button>
-      <button class="btn-ghost text-xs" data-close="paste">Paste reply</button>
+    <input id="stReply" class="field mt-3 text-xs" placeholder="…or paste their reply code here (CSL1.…)" autocomplete="off" spellcheck="false">
+    <div class="mt-3 grid grid-cols-2 gap-3">
+      <button id="stCopy" class="btn-ghost text-xs">Copy this code</button>
       <button class="btn-primary text-xs" data-close="done">Done</button>
     </div>`, { grab: false });
 
@@ -883,6 +963,18 @@ async function joinStation(m, ctx) {
   document.querySelector('#stCopy')?.addEventListener('click', async () => {
     toast(await copyText(currentCode) ? 'Code copied — send it any way you like' : 'Could not copy', 'ok');
   });
+
+  // The keyboard path, first-class: on a computer the webcam is often unusable,
+  // so a pasted reply connects the moment it lands in this box.
+  const replyBox = document.querySelector('#stReply');
+  const tryBoxReply = async () => {
+    const t = replyBox?.value.trim();
+    if (!t || !t.startsWith('CSL1.') || seen.has(t) || t.length < 60) return;
+    replyBox.value = '';
+    await handleReply(t);
+  };
+  replyBox?.addEventListener('input', tryBoxReply);
+  replyBox?.addEventListener('paste', () => setTimeout(tryBoxReply, 50));
 
   const handleReply = async reply => {
     seen.add(reply);
@@ -911,15 +1003,9 @@ async function joinStation(m, ctx) {
     }
   })();
 
-  const v = await p;
+  await p;
   open = false; cam?.stop(); busy = false;
-
-  if (v === 'paste') {
-    const t = (await promptDlg('Paste the viewer’s reply', { placeholder: 'CSL1.…' }))?.trim();
-    if (t) await handleReply(t);
-    return joinStation(m, ctx);
-  }
-  // 'done' or dismissed: the camera stops, the broadcast keeps running.
+  // The camera stops; the broadcast keeps running until Stop is chosen.
 }
 
 export function scoreSummaryText(m) {

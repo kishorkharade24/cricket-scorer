@@ -128,6 +128,65 @@ function gathered(pc) {
 }
 
 /* ------------------------------------------------------------------ *
+ * The handshake relay (optional, needs internet)
+ *
+ * The score itself always flows phone-to-phone. What can travel through here
+ * is only the ~300-byte connection handshake, so that joining becomes: scan
+ * one QR, scorer taps Accept. Everything published is AES-GCM encrypted with
+ * a key that exists only inside the QR — the relay carries ciphertext on a
+ * random unguessable topic and can read none of it. With no internet the
+ * two-QR flow still works; this is a shortcut, not a dependency.
+ * ------------------------------------------------------------------ */
+
+const RELAY = 'https://ntfy.sh';
+const rnd = n => crypto.getRandomValues(new Uint8Array(n));
+
+async function seal(keyRaw, obj) {
+  const key = await crypto.subtle.importKey('raw', keyRaw, 'AES-GCM', false, ['encrypt']);
+  const iv = rnd(12);
+  const ct = new Uint8Array(await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj))));
+  const out = new Uint8Array(iv.length + ct.length);
+  out.set(iv); out.set(ct, iv.length);
+  return b64u.enc(out);
+}
+
+async function unseal(keyRaw, str) {
+  const key = await crypto.subtle.importKey('raw', keyRaw, 'AES-GCM', false, ['decrypt']);
+  const raw = b64u.dec(str);
+  const pt = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: raw.slice(0, 12) }, key, raw.slice(12));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+function relaySub(topic, onMsg) {
+  const ws = new WebSocket(`${RELAY.replace('https', 'wss')}/${topic}/ws`);
+  ws.onmessage = e => {
+    try {
+      const m = JSON.parse(e.data);
+      if (m.event === 'message' && m.message) onMsg(m.message);
+    } catch { /* not for us */ }
+  };
+  return ws;
+}
+
+async function relayPub(topic, text) {
+  const r = await fetch(`${RELAY}/${topic}`, { method: 'POST', body: text });
+  if (!r.ok) throw new Error('relay refused the message');
+}
+
+/** Is the shortcut available right now? */
+export async function relayCheck(ms = 3500) {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+  try {
+    const c = new AbortController();
+    setTimeout(() => c.abort(), ms);
+    const r = await fetch(`${RELAY}/v1/health`, { signal: c.signal });
+    return r.ok;
+  } catch { return false; }
+}
+
+/* ------------------------------------------------------------------ *
  * Hosting (the scorer's side)
  * ------------------------------------------------------------------ */
 
@@ -178,20 +237,98 @@ export function startHosting(matchId) {
 export function stopHosting() {
   host.peers.forEach(p => { try { p.dc?.close(); p.pc?.close(); } catch { /* ignore */ } });
   try { host.pending?.pc?.close(); } catch { /* ignore */ }
+  closeRoom();
   clearInterval(host.ping);
   host.unsub?.();
   Object.assign(host, { matchId: null, peers: [], pending: null, unsub: null, ping: null });
 }
 
-/** Step 1: make the code the viewer scans. */
-export async function hostOffer(matchId) {
+export function closeRoom() {
+  try { host.room?.ws?.close(); } catch { /* ignore */ }
+  host.room = null;
+}
+
+/**
+ * One-scan hosting: open a room on the relay and hand back a short code.
+ * Each viewer that scans it sends a join request; `onRequest` gets
+ * { accept, reject } and the scorer decides. One QR serves any number of
+ * viewers because each brings its own connection offer.
+ */
+export async function hostRoom(matchId, { onRequest }) {
   startHosting(matchId);
-  try { host.pending?.pc?.close(); } catch { /* ignore */ }
+  closeRoom();
+  const topic = 'cs' + b64u.enc(rnd(10));
+  const keyRaw = rnd(16);
+  const seenIds = new Set();
 
+  const ws = relaySub(topic, async sealed => {
+    let msg;
+    try { msg = await unseal(keyRaw, sealed); } catch { return; }   // not ours
+    if (msg.t !== 'jo' || !msg.i || seenIds.has(msg.i)) return;
+    seenIds.add(msg.i);
+    onRequest({
+      id: msg.i,
+      accept: async () => {
+        const pc = new RTCPeerConnection(RTC_CFG);
+        const peer = { pc, dc: null };
+        pc.ondatachannel = e => attachHostChannel(peer, e.channel);
+        await pc.setRemoteDescription({ type: 'offer', sdp: buildSdp(msg.j) });
+        await pc.setLocalDescription(await pc.createAnswer());
+        await gathered(pc);
+        await relayPub(topic, await seal(keyRaw, { t: 'ja', i: msg.i, j: packSdp(pc.localDescription.sdp) }));
+      },
+      reject: () => { /* silence is the rejection — the viewer times out */ }
+    });
+  });
+
+  host.room = { topic, keyRaw, ws };
+  return encodeBlob({ p: PROTO, t: 'room', r: topic, k: b64u.enc(keyRaw) });
+}
+
+/**
+ * The viewer's side of a room code: send our offer through the relay, wait
+ * for the scorer to accept. The connection itself is still phone-to-phone.
+ */
+export async function viewerJoinRoom(code, { onStatus } = {}) {
+  const msg = await decodeBlob(code);
+  if (msg.p !== PROTO || msg.t !== 'room') throw new Error('That is not a room code.');
+  viewerLeave();
+
+  const keyRaw = b64u.dec(msg.k);
   const pc = new RTCPeerConnection(RTC_CFG);
-  const dc = pc.createDataChannel('score', { ordered: true });
-  const peer = { pc, dc };
+  viewer.pc = pc;
+  attachViewerChannel(pc.createDataChannel('score', { ordered: true }));
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed') viewer.onState?.('failed');
+    else if (['disconnected', 'closed'].includes(pc.connectionState)) viewer.onState?.('closed');
+  };
 
+  const myId = b64u.enc(rnd(6));
+  const ws = relaySub(msg.r, async sealed => {
+    let m;
+    try { m = await unseal(keyRaw, sealed); } catch { return; }
+    if (m.t !== 'ja' || m.i !== myId) return;
+    ws.close();
+    try {
+      await pc.setRemoteDescription({ type: 'answer', sdp: buildSdp(m.j) });
+      onStatus?.('accepted');
+    } catch (err) { console.error('[live]', err); viewer.onState?.('failed'); }
+  });
+  await new Promise((res, rej) => {
+    ws.onopen = res;
+    ws.onerror = () => rej(new Error('Could not reach the join service — ask the scorer to switch to offline mode.'));
+    setTimeout(() => rej(new Error('Could not reach the join service — ask the scorer to switch to offline mode.')), 6000);
+  });
+
+  await pc.setLocalDescription(await pc.createOffer());
+  await gathered(pc);
+  await relayPub(msg.r, await seal(keyRaw, { t: 'jo', i: myId, j: packSdp(pc.localDescription.sdp) }));
+  onStatus?.('waiting-accept');
+  return true;
+}
+
+function attachHostChannel(peer, dc) {
+  peer.dc = dc;
   dc.onopen = () => {
     host.peers.push(peer);
     if (host.pending === peer) host.pending = null;
@@ -202,6 +339,17 @@ export async function hostOffer(matchId) {
     host.peers = host.peers.filter(p => p !== peer);
     host.onChange?.();
   };
+}
+
+/** Step 1: make the code the viewer scans. */
+export async function hostOffer(matchId) {
+  startHosting(matchId);
+  try { host.pending?.pc?.close(); } catch { /* ignore */ }
+
+  const pc = new RTCPeerConnection(RTC_CFG);
+  const dc = pc.createDataChannel('score', { ordered: true });
+  const peer = { pc, dc };
+  attachHostChannel(peer, dc);
 
   await pc.setLocalDescription(await pc.createOffer());
   await gathered(pc);
@@ -235,6 +383,22 @@ export const viewer = {
   onState: null         // fn('connecting'|'open'|'closed')
 };
 
+function attachViewerChannel(dc) {
+  viewer.dc = dc;
+  dc.onopen = () => { viewer.lastSeen = Date.now(); viewer.onState?.('open'); };
+  dc.onclose = () => viewer.onState?.('closed');
+  dc.onmessage = ev => {
+    viewer.lastSeen = Date.now();
+    let data;
+    try { data = JSON.parse(ev.data); } catch { return; }
+    if (data.t === 'ping') { try { dc.send('{"t":"pong"}'); } catch { /* ignore */ } return; }
+    if (data.t === 'match' && data.proto === PROTO) {
+      viewer.lastBundle = data;
+      viewer.onUpdate?.(data);
+    }
+  };
+}
+
 /** Scan the scorer's code, get back the reply code to show them. */
 export async function viewerJoin(offerCode) {
   const msg = await decodeBlob(offerCode);
@@ -243,21 +407,7 @@ export async function viewerJoin(offerCode) {
 
   const pc = new RTCPeerConnection(RTC_CFG);
   viewer.pc = pc;
-  pc.ondatachannel = e => {
-    const dc = viewer.dc = e.channel;
-    dc.onopen = () => { viewer.lastSeen = Date.now(); viewer.onState?.('open'); };
-    dc.onclose = () => viewer.onState?.('closed');
-    dc.onmessage = ev => {
-      viewer.lastSeen = Date.now();
-      let data;
-      try { data = JSON.parse(ev.data); } catch { return; }
-      if (data.t === 'ping') { try { dc.send('{"t":"pong"}'); } catch { /* ignore */ } return; }
-      if (data.t === 'match' && data.proto === PROTO) {
-        viewer.lastBundle = data;
-        viewer.onUpdate?.(data);
-      }
-    };
-  };
+  pc.ondatachannel = e => attachViewerChannel(e.channel);
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === 'failed') viewer.onState?.('failed');
     else if (['disconnected', 'closed'].includes(pc.connectionState)) viewer.onState?.('closed');
