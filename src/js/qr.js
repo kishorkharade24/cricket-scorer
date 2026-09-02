@@ -21,7 +21,7 @@ function loadScript(src) {
 }
 
 /** Draw `text` as a QR into (or as) a canvas. Returns the canvas. */
-export async function renderQR(text, { size = 640, canvas } = {}) {
+export async function renderQR(text, { size = 720, canvas } = {}) {
   await loadScript('./src/js/vendor/qrcode.js');
   const qr = window.qrcode(0, 'L');        // 0 = pick the smallest version that fits
   qr.addData(text, 'Byte');
@@ -49,22 +49,42 @@ export async function renderQR(text, { size = 640, canvas } = {}) {
 /* ---------- decoding one frame ---------- */
 
 let detector;
-async function decodeFrame(source, w, h) {
+let detectorMisses = 0;
+
+/**
+ * One decode attempt. The frame is centre-cropped square and shrunk to ~640px
+ * first: jsQR is dramatically better on a tight, modest-resolution crop than
+ * on a full landscape camera frame, and the overlay tells the person to put
+ * the code in the middle anyway. BarcodeDetector gets first go where it
+ * exists; if it keeps coming back empty, jsQR joins in as a second opinion —
+ * some implementations of it are stubs that never find anything.
+ */
+async function decodeFrame(video) {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) return null;
+  // Alternate between a centre crop (the guide box) and the full frame, both
+  // at native resolution — downscaling shrinks the QR's modules and is exactly
+  // what makes a dense code unreadable.
+  const useCrop = (decodeFrame._n = (decodeFrame._n || 0) + 1) % 2 === 1;
+  const side = Math.min(vw, vh);
+  const W = useCrop ? side : vw, H = useCrop ? side : vh;
+  const c = decodeFrame._c || (decodeFrame._c = document.createElement('canvas'));
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  if (useCrop) ctx.drawImage(video, (vw - side) / 2, (vh - side) / 2, side, side, 0, 0, side, side);
+  else ctx.drawImage(video, 0, 0);
+
   if ('BarcodeDetector' in window) {
     try {
       detector = detector || new window.BarcodeDetector({ formats: ['qr_code'] });
-      const found = await detector.detect(source);
+      const found = await detector.detect(c);
       if (found.length) return found[0].rawValue;
-      return null;
+      if (++detectorMisses < 12) return null;   // give the native detector ~3s alone
     } catch { /* fall through to jsQR */ }
   }
   await loadScript('./src/js/vendor/jsqr.js');
-  const c = decodeFrame._c || (decodeFrame._c = document.createElement('canvas'));
-  c.width = w; c.height = h;
-  const ctx = c.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(source, 0, 0, w, h);
-  const img = ctx.getImageData(0, 0, w, h);
-  const hit = window.jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+  const img = ctx.getImageData(0, 0, W, H);
+  const hit = window.jsQR(img.data, W, H, { inversionAttempts: 'dontInvert' });
   return hit ? hit.data : null;
 }
 
@@ -81,7 +101,7 @@ export async function decodeCanvas(canvas) {
  * Open the camera inside `videoEl` and resolve with the first QR that decodes.
  * Returns { stop } immediately via onReady; the promise settles on a hit or stop().
  */
-export function scanCamera(videoEl, { onError } = {}) {
+export function scanCamera(videoEl, { onError, onHint } = {}) {
   let stopped = false;
   let stream = null;
 
@@ -106,13 +126,16 @@ export function scanCamera(videoEl, { onError } = {}) {
     videoEl.setAttribute('playsinline', '');   // iOS: stay inline, not fullscreen
     await videoEl.play().catch(() => {});
 
+    const started = Date.now();
     while (!stopped) {
       if (videoEl.readyState >= 2 && videoEl.videoWidth) {
-        const hit = await decodeFrame(videoEl, videoEl.videoWidth, videoEl.videoHeight)
-          .catch(() => null);
+        const hit = await decodeFrame(videoEl).catch(() => null);
         if (hit) { stop(); return hit; }
       }
-      await new Promise(r => setTimeout(r, 180));
+      const secs = (Date.now() - started) / 1000;
+      if (secs > 6 && secs < 6.4) onHint?.('Fill the frame with the code — about 20 cm away works best.');
+      if (secs > 16 && secs < 16.4) onHint?.('Still nothing? Tap “Paste the code” below instead.');
+      await new Promise(r => setTimeout(r, 220));
     }
     return null;
   })();
@@ -132,7 +155,7 @@ export async function showCodeSheet({ title, subtitle, code, nextLabel }) {
     <h3 class="text-lg font-bold text-white">${esc(title)}</h3>
     <p class="text-xs text-slate-500 mt-1 leading-snug">${esc(subtitle)}</p>
     <div class="mt-4 rounded-2xl bg-pure p-3 grid place-items-center">
-      <canvas id="qrOut" class="w-full max-w-[300px] aspect-square [image-rendering:pixelated]"></canvas>
+      <canvas id="qrOut" class="w-full max-w-[360px] aspect-square [image-rendering:pixelated]"></canvas>
     </div>
     <button class="btn-ghost w-full mt-3 text-xs" data-close="copy">Copy the code instead</button>
     <div class="mt-3 grid grid-cols-2 gap-3">
@@ -160,7 +183,9 @@ export async function scanCodeSheet({ title, subtitle }) {
     <p class="text-xs text-slate-500 mt-1 leading-snug">${esc(subtitle)}</p>
     <div class="mt-4 rounded-2xl overflow-hidden bg-black aspect-square grid place-items-center relative">
       <video id="scanVid" muted playsinline class="w-full h-full object-cover"></video>
-      <p id="scanErr" class="absolute inset-x-4 bottom-3 text-center text-[11px] text-amber-300"></p>
+      <div class="absolute inset-[12%] rounded-2xl border-2 border-white/50 pointer-events-none"
+           style="mask: linear-gradient(#000 0 0); box-shadow: 0 0 0 999px rgba(0,0,0,.25)"></div>
+      <p id="scanErr" class="absolute inset-x-4 bottom-3 text-center text-[11px] text-amber-300 drop-shadow"></p>
     </div>
     <div class="mt-3 grid grid-cols-2 gap-3">
       <button class="btn-ghost" data-close="__dismiss">Cancel</button>
@@ -168,9 +193,8 @@ export async function scanCodeSheet({ title, subtitle }) {
     </div>`, { grab: false });
 
   const video = document.querySelector('#scanVid');
-  const cam = scanCamera(video, {
-    onError: msg => { const el = document.querySelector('#scanErr'); if (el) el.textContent = msg; }
-  });
+  const say = msg => { const el = document.querySelector('#scanErr'); if (el) el.textContent = msg; };
+  const cam = scanCamera(video, { onError: say, onHint: say });
   cam.result.then(text => { if (text) closeSheet('got:' + text); });
 
   const v = await p;

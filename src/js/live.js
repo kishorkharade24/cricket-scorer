@@ -61,6 +61,45 @@ export async function decodeBlob(str) {
 
 const RTC_CFG = { iceServers: [] };   // local network only, on purpose
 
+/**
+ * The QR carries only what a data-channel connection actually needs — the ICE
+ * credentials, the DTLS fingerprint and the host candidates — and the SDP is
+ * rebuilt from a template on the other side. Browsers pad an offer to ~1.5KB;
+ * this packs to ~250 bytes, and a smaller code means bigger QR modules, which
+ * is the difference between a phone camera reading it or not.
+ */
+export function packSdp(sdp) {
+  const grab = re => (String(sdp).match(re) || [])[1] || '';
+  const fp = grab(/a=fingerprint:sha-256 ([0-9A-F:]+)/i).replace(/:/g, '');
+  return {
+    u: grab(/a=ice-ufrag:(\S+)/),
+    w: grab(/a=ice-pwd:(\S+)/),
+    f: fp,                                                    // hex, no colons
+    a: /a=setup:actpass/.test(sdp) ? 1 : 0,                   // 1 = offer side
+    c: [...String(sdp).matchAll(/a=candidate:\S+ 1 (?:udp|UDP) \d+ (\S+) (\d+) typ host/g)]
+        .map(m => [m[1], +m[2]])
+        .filter((v, i, arr) => arr.findIndex(x => x[0] === v[0] && x[1] === v[1]) === i)
+        .slice(0, 5)
+  };
+}
+
+export function buildSdp(j) {
+  const fp = j.f.match(/.{2}/g).join(':').toUpperCase();
+  const cands = j.c.map(([ip, port], i) =>
+    `a=candidate:${i + 1} 1 udp ${2122260223 - i} ${ip} ${port} typ host`);
+  return [
+    'v=0', 'o=- 1000000000000000001 2 IN IP4 127.0.0.1', 's=-', 't=0 0',
+    'a=group:BUNDLE 0', 'a=msid-semantic: WMS',
+    'm=application 9 UDP/DTLS/SCTP webrtc-datachannel',
+    'c=IN IP4 0.0.0.0',
+    ...cands,
+    `a=ice-ufrag:${j.u}`, `a=ice-pwd:${j.w}`,
+    `a=fingerprint:sha-256 ${fp}`,
+    `a=setup:${j.a ? 'actpass' : 'active'}`,
+    'a=mid:0', 'a=sctp-port:5000', 'a=max-message-size:262144'
+  ].join('\r\n') + '\r\n';
+}
+
 function gathered(pc) {
   return new Promise(res => {
     if (pc.iceGatheringState === 'complete') return res();
@@ -151,7 +190,7 @@ export async function hostOffer(matchId) {
   await pc.setLocalDescription(await pc.createOffer());
   await gathered(pc);
   host.pending = peer;
-  return encodeBlob({ p: PROTO, t: 'offer', sdp: pc.localDescription.sdp });
+  return encodeBlob({ p: PROTO, t: 'offer', j: packSdp(pc.localDescription.sdp) });
 }
 
 /** Step 2: feed in the viewer's reply. Resolves once the channel opens. */
@@ -160,7 +199,7 @@ export async function hostAccept(replyCode) {
   if (msg.p !== PROTO || msg.t !== 'answer') throw new Error('That code is not a viewer reply.');
   const peer = host.pending;
   if (!peer) throw new Error('Create a viewer code first.');
-  await peer.pc.setRemoteDescription({ type: 'answer', sdp: msg.sdp });
+  await peer.pc.setRemoteDescription({ type: 'answer', sdp: msg.j ? buildSdp(msg.j) : msg.sdp });
   await new Promise((res, rej) => {
     if (peer.dc.readyState === 'open') return res();
     const t = setTimeout(() => rej(new Error('The phones could not reach each other. Same WiFi (or the scorer’s hotspot), then try again.')), 15000);
@@ -207,11 +246,11 @@ export async function viewerJoin(offerCode) {
     if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) viewer.onState?.('closed');
   };
 
-  await pc.setRemoteDescription({ type: 'offer', sdp: msg.sdp });
+  await pc.setRemoteDescription({ type: 'offer', sdp: msg.j ? buildSdp(msg.j) : msg.sdp });
   await pc.setLocalDescription(await pc.createAnswer());
   await gathered(pc);
   viewer.onState?.('connecting');
-  return encodeBlob({ p: PROTO, t: 'answer', sdp: pc.localDescription.sdp });
+  return encodeBlob({ p: PROTO, t: 'answer', j: packSdp(pc.localDescription.sdp) });
 }
 
 export function viewerLeave() {
