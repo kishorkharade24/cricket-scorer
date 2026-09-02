@@ -151,10 +151,11 @@ function landing() {
   return `
     <div class="card p-6 text-center animate-slide-up">
       <div class="mx-auto h-14 w-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 grid place-items-center text-2xl mb-3">📡</div>
-      <h2 class="text-lg font-bold text-white">Watch a nearby match</h2>
+      <h2 class="text-lg font-bold text-white">Watch a live match</h2>
       <p class="mt-2 text-sm text-slate-400 leading-relaxed max-w-xs mx-auto">
-        Live, phone to phone over the local network — no internet, no account.
-        Best on the same WiFi or the scorer’s hotspot.</p>
+        The score comes straight from the scoring phone — no account, no distance limit.
+        At the ground, the same WiFi or their hotspot always works; from far away it
+        usually works too.</p>
       <button data-act="join" class="btn-primary mt-5 w-full">Scan the scorer’s code</button>
       <p class="mt-3 text-[11px] text-slate-600">Keep this screen on while watching — locking it drops the connection.</p>
     </div>`;

@@ -36,8 +36,8 @@ export default {
 
       <a href="#/live" class="card-h mt-3 p-3.5 flex items-center gap-3">
         <span class="h-9 w-9 shrink-0 rounded-xl bg-emerald-500/10 border border-emerald-500/25 grid place-items-center text-base">📡</span>
-        <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-white">Watch a match nearby</span>
-        <span class="block text-[11px] text-slate-500">Live scoreboard from another phone — same WiFi, no internet needed</span></span>
+        <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-white">Watch a live match</span>
+        <span class="block text-[11px] text-slate-500">From the phone that is scoring — at the ground or from anywhere</span></span>
         <span class="text-slate-600">›</span>
       </a>
 

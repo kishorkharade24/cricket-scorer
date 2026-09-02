@@ -157,7 +157,7 @@ async function liveQrSheet(t) {
   const p = sheet(`
     <h3 class="text-lg font-bold text-white">Live scoreboard QR</h3>
     <p class="text-xs text-slate-500 mt-1 leading-snug">One code for the whole tournament — print it, put it in the
-      group, stick it by the pitch. Anyone can scan it <b class="text-slate-300">before play even starts</b>;
+      group, stick it by the pitch. Anyone can scan it <b class="text-slate-300">before play even starts</b>, from the ground or from home;
       when a match goes live, the scorer taps Accept and they are in. Needs internet on both sides
       (a hotspot counts).</p>
     <div class="mt-3 rounded-2xl bg-pure p-2.5 grid place-items-center">

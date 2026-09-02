@@ -845,7 +845,7 @@ async function joinStation(m, ctx, forceOffline = false) {
   const p = sheet(`
     <h3 class="text-lg font-bold text-white">Add viewers</h3>
     <ol class="mt-2 space-y-1 text-[12px] text-slate-400 leading-snug list-decimal pl-4">
-      <li>On their phone: Home → <b class="text-slate-200">Watch a match nearby</b> → scan this code.</li>
+      <li>On their phone: Home → <b class="text-slate-200">Watch a live match</b> → scan this code.</li>
       <li>When they appear below, tap <b class="text-slate-200">Accept</b>. That is all.</li>
     </ol>
     <div class="mt-3 rounded-2xl bg-pure p-2.5 grid place-items-center">
@@ -929,7 +929,7 @@ async function cameraStation(m, ctx) {
   const p = sheet(`
     <h3 class="text-lg font-bold text-white">Add viewers</h3>
     <ol class="mt-2 space-y-1 text-[12px] text-slate-400 leading-snug list-decimal pl-4">
-      <li>On their phone: Home → <b class="text-slate-200">Watch a match nearby</b> → scan this code.</li>
+      <li>On their phone: Home → <b class="text-slate-200">Watch a live match</b> → scan this code.</li>
       <li>A <b class="text-slate-200">reply code</b> appears on their phone.</li>
       <li>They hold that reply up to the camera below <b class="text-slate-200">until this says Connected</b> —
         or they tap <b class="text-slate-200">Copy the code</b> and you paste it here.</li>
