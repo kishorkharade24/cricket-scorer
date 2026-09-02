@@ -86,10 +86,10 @@ async function join(ctx) {
   step = 'reply';
   ctx.render();
   await showCodeSheet({
-    title: 'Now show this reply',
-    subtitle: 'The scorer scans it (or you send them the copied code). The score appears here the moment you are connected.',
+    title: 'Hold this up to the scorer’s phone',
+    subtitle: 'Their screen is already watching for it — no tapping needed on either side. You will jump to the score the moment it connects.',
     code: reply,
-    nextLabel: 'They scanned it'
+    nextLabel: 'Close'
   });
   ctx.render();
 }

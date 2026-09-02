@@ -101,7 +101,7 @@ export async function decodeCanvas(canvas) {
  * Open the camera inside `videoEl` and resolve with the first QR that decodes.
  * Returns { stop } immediately via onReady; the promise settles on a hit or stop().
  */
-export function scanCamera(videoEl, { onError, onHint } = {}) {
+export function scanCamera(videoEl, { onError, onHint, accept } = {}) {
   let stopped = false;
   let stream = null;
 
@@ -130,7 +130,7 @@ export function scanCamera(videoEl, { onError, onHint } = {}) {
     while (!stopped) {
       if (videoEl.readyState >= 2 && videoEl.videoWidth) {
         const hit = await decodeFrame(videoEl).catch(() => null);
-        if (hit) { stop(); return hit; }
+        if (hit && (!accept || accept(hit))) { stop(); return hit; }
       }
       const secs = (Date.now() - started) / 1000;
       if (secs > 6 && secs < 6.4) onHint?.('Fill the frame with the code — about 20 cm away works best.');

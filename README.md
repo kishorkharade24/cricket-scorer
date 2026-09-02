@@ -220,8 +220,11 @@ Venue WiFi with client isolation will block it — use the hotspot. A watching
 phone that locks its screen drops off and rejoins with a fresh scan; the app
 holds a wake lock on both sides to keep that rare.
 
-Scorer: menu ⋮ on the scoring screen → **Live scoreboard** → Add a viewer.
-Viewer: Home → **Watch a match nearby**.
+One tap each: the scorer opens 📡 on the scoring screen, which shows the QR
+**and watches for replies with its own camera**; each viewer opens Home →
+**Watch a match nearby**, scans, then just holds up the reply their phone
+shows. No further taps on either side — the code rotates automatically for the
+next viewer. Copy/paste buttons cover devices without a usable camera.
 
 ### Sharing
 Any scorecard can go out as a **picture** — 1080px wide, drawn on a canvas with

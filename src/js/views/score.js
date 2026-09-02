@@ -1,12 +1,12 @@
 /* Live scoring — the screen a scorer actually uses. */
 
-import { esc, fixed, oversOf, sheet, closeSheet, toast, haptic, confirmDlg, initials, shortName } from '../util.js';
+import { esc, fixed, oversOf, sheet, closeSheet, toast, haptic, confirmDlg, initials, shortName, promptDlg, copyText } from '../util.js';
 import * as store from '../store.js';
 import { badge, ballChip, empty, teamName, nameOf, ICON, iconBtn, livePill } from '../ui.js';
 import * as E from '../engine.js';
 import { motmCandidates } from '../stats.js';
 import * as live from '../live.js';
-import { showCodeSheet, scanCodeSheet } from '../qr.js';
+import { renderQR, scanCamera } from '../qr.js';
 
 let armed = null;         // 'wd' | 'nb' | 'b' | 'lb'
 let busy = false;         // a prompt sheet is open
@@ -820,49 +820,106 @@ async function liveMenu(m, ctx) {
     const n = live.viewerCount();
     const v = await sheet(`
       <h3 class="text-lg font-bold text-white">Live scoreboard</h3>
-      <p class="text-xs text-slate-500 mt-1">${n} phone${n === 1 ? '' : 's'} watching. Each new viewer needs their own code.</p>
+      <p class="text-xs text-slate-500 mt-1">${n} phone${n === 1 ? '' : 's'} watching.</p>
       <div class="mt-4 grid gap-2">
-        <button class="btn-primary" data-close="add">＋ Add a viewer</button>
+        <button class="btn-primary" data-close="add">＋ Add viewers</button>
         <button class="btn-danger" data-close="stop">Stop broadcasting</button>
         <button class="btn-ghost" data-close="__dismiss">Close</button>
       </div>`, { grab: false });
     if (v === 'stop') { live.stopHosting(); toast('Live scoreboard stopped', 'info'); return; }
     if (v !== 'add') return;
   }
-  return addViewer(m, ctx);
+  return joinStation(m, ctx);
 }
 
-async function addViewer(m, ctx) {
-  let code;
+/**
+ * One screen for any number of viewers: the QR on top, the camera underneath
+ * already watching for replies. The scorer taps once and then only holds the
+ * phone; each viewer scans, their reply appears on their screen, this camera
+ * reads it, and the code rotates for the next person.
+ */
+async function joinStation(m, ctx) {
+  busy = true;
+  let open = true;
+  let cam = null;
+  const seen = new Set();
+
+  const p = sheet(`
+    <h3 class="text-lg font-bold text-white">Add viewers</h3>
+    <p class="text-xs text-slate-500 mt-1 leading-snug">On their phone: Home → <b class="text-slate-300">Watch a match nearby</b> → scan this.
+      Then they hold up their reply — the camera below reads it by itself.</p>
+    <div class="mt-3 rounded-2xl bg-pure p-2.5 grid place-items-center">
+      <canvas id="stQr" class="w-full max-w-[280px] aspect-square [image-rendering:pixelated]"></canvas>
+    </div>
+    <div class="mt-3 rounded-xl overflow-hidden bg-black relative" style="height:140px">
+      <video id="stVid" muted playsinline class="w-full h-full object-cover"></video>
+      <p id="stStatus" class="absolute inset-x-2 bottom-2 text-center text-[11px] font-semibold text-white drop-shadow"></p>
+    </div>
+    <div class="mt-3 grid grid-cols-3 gap-2">
+      <button id="stCopy" class="btn-ghost text-xs">Copy code</button>
+      <button class="btn-ghost text-xs" data-close="paste">Paste reply</button>
+      <button class="btn-primary text-xs" data-close="done">Done</button>
+    </div>`, { grab: false });
+
+  const status = t => { const el = document.querySelector('#stStatus'); if (el) el.textContent = t; };
+  const count = () => `${live.viewerCount()} watching`;
+
+  let currentCode = '';
+  const freshQR = async () => {
+    currentCode = await live.hostOffer(m.id);
+    const c = document.querySelector('#stQr');
+    if (c) { await renderQR(currentCode, { canvas: c }); c.dataset.code = currentCode; }
+  };
+
   try {
-    toast('Preparing a viewer code…', 'info', 1500);
-    // Camera permission first: it is needed to scan the reply in a moment
-    // anyway, and granting it lets the phones exchange real addresses instead
-    // of .local names that often fail to resolve between devices.
     await live.warmup();
-    code = await live.hostOffer(m.id);
+    await freshQR();
   } catch (err) {
-    toast('Could not start the live scoreboard on this browser', 'error');
     console.error('[live]', err);
-    return;
+    toast('Could not start the live scoreboard on this browser', 'error');
+    closeSheet('__dismiss'); busy = false; return;
   }
-  const next = await showCodeSheet({
-    title: 'Add a viewer',
-    subtitle: 'On the other phone: Home → Watch a match nearby → scan this. Then come back here for their reply.',
-    code, nextLabel: 'Scan their reply'
+  status(`${count()} · waiting for a viewer to scan…`);
+  document.querySelector('#stCopy')?.addEventListener('click', async () => {
+    toast(await copyText(currentCode) ? 'Code copied — send it any way you like' : 'Could not copy', 'ok');
   });
-  if (!next) return;
-  const reply = await scanCodeSheet({
-    title: 'Scan the viewer’s reply',
-    subtitle: 'It is on their screen now.'
-  });
-  if (!reply) return;
-  try {
-    await live.hostAccept(reply);
-    toast(`Connected — ${live.viewerCount()} watching`, 'ok');
-  } catch (err) {
-    toast(err.message || 'Could not connect', 'error', 6000);
+
+  const handleReply = async reply => {
+    seen.add(reply);
+    status('Connecting…');
+    try {
+      await live.hostAccept(reply);
+      toast(`Connected — ${count()}`, 'ok');
+      haptic(20);
+    } catch (err) {
+      status(err.message || 'Could not connect — they can try again');
+    }
+    await freshQR();                     // rotate for the next viewer
+    status(`${count()} · next viewer can scan`);
+  };
+
+  (async () => {
+    const video = document.querySelector('#stVid');
+    while (open && video) {
+      cam = scanCamera(video, {
+        onError: msg => status(msg + ' — use “Paste a reply”'),
+        accept: t => t.startsWith('CSL1.') && !seen.has(t)
+      });
+      const hit = await cam.result;
+      if (!open || !hit) break;
+      await handleReply(hit);
+    }
+  })();
+
+  const v = await p;
+  open = false; cam?.stop(); busy = false;
+
+  if (v === 'paste') {
+    const t = (await promptDlg('Paste the viewer’s reply', { placeholder: 'CSL1.…' }))?.trim();
+    if (t) await handleReply(t);
+    return joinStation(m, ctx);
   }
+  // 'done' or dismissed: the camera stops, the broadcast keeps running.
 }
 
 export function scoreSummaryText(m) {
