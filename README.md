@@ -1,5 +1,8 @@
 # 🏏 Cricket Scorer
 
+**Try it: <https://kishorkharade24.github.io/cricket-scorer/>** — open it on your
+phone and add it to the home screen; it works fully offline after the first load.
+
 A ball-by-ball cricket scoring app with tournaments, built as an **offline-first PWA**.
 No backend, no accounts, no network calls of any kind — everything lives in the
 browser's `localStorage` on the device you score on.
