@@ -32,11 +32,14 @@ export default {
   actions: ctx => {
     const m = store.match(ctx.id);
     const on = m && live.hosting() && live.host.matchId === m.id;
+    const pending = on ? live.host.requests.length : 0;
     const antenna = '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 11v9"/><circle cx="12" cy="9.5" r="1.6" fill="currentColor" stroke="none"/><path d="M8.5 6a5 5 0 0 0 0 7M15.5 6a5 5 0 0 1 0 7M5.6 3.4a9 9 0 0 0 0 12.2M18.4 3.4a9 9 0 0 1 0 12.2"/></svg>';
     return `<button data-act="golive" aria-label="Live scoreboard" title="Live scoreboard"
-        class="h-9 rounded-xl border grid place-items-center px-2 active:scale-90 transition ${on
-          ? 'bg-sky-500/15 border-sky-500/30 text-sky-300' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}">
-        <span class="flex items-center gap-1">${antenna}${on ? `<span class="num text-[11px] font-bold">${live.viewerCount()}</span>` : ''}</span>
+        class="h-9 rounded-xl border grid place-items-center px-2 active:scale-90 transition ${
+          pending ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 animate-pulse-ring'
+          : on ? 'bg-sky-500/15 border-sky-500/30 text-sky-300'
+          : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}">
+        <span class="flex items-center gap-1">${antenna}${on ? `<span class="num text-[11px] font-bold">${pending ? '+' + pending : live.viewerCount()}</span>` : ''}</span>
       </button>
       <a href="#/scorecard/${ctx.id}" class="h-9 w-9 rounded-xl bg-white/5 border border-white/10 grid place-items-center text-slate-300 hover:bg-white/10 active:scale-90 transition" aria-label="Scorecard">${ICON.card}</a>
       ${iconBtn('more', '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>', 'More options')}`;
@@ -51,6 +54,7 @@ export default {
     const first = m.innings.length > 1 ? E.computeInnings(m, 0) : null;
 
     return `
+      ${joinBanner(m)}
       ${scoreboard(m, st, first)}
       ${crease(m, st)}
       ${overStrip(st)}
@@ -62,6 +66,24 @@ export default {
     const m = store.match(ctx.id);
     if (!m) return;
     const rr = () => ctx.render();
+
+    // While broadcasting, a scan can arrive at any moment — redraw so the
+    // banner and the antenna badge appear even with every sheet closed.
+    if (live.hosting() && live.host.matchId === m.id) {
+      live.host.onChange = () => { if (location.hash.includes(m.id)) ctx.render(); };
+    }
+    root.querySelectorAll('[data-liveacc]').forEach(b => b.addEventListener('click', async () => {
+      const req = live.host.requests.find(r => r.id === b.dataset.liveacc);
+      if (!req) return;
+      toast('Connecting the viewer…', 'info', 1500);
+      try { await req.accept(); toast(`Connected — ${live.viewerCount()} watching`, 'ok'); haptic(20); }
+      catch (err) { toast(err.message || 'Could not connect', 'error'); }
+      ctx.render();
+    }));
+    root.querySelectorAll('[data-liveign]').forEach(b => b.addEventListener('click', () => {
+      live.host.requests.find(r => r.id === b.dataset.liveign)?.reject();
+      ctx.render();
+    }));
 
     root.querySelectorAll('[data-run]').forEach(b => b.addEventListener('click', () => runTap(m, +b.dataset.run, ctx)));
     root.querySelectorAll('[data-zone]').forEach(b => b.addEventListener('click', () => {
@@ -90,6 +112,18 @@ export default {
     if (!busy) ensurePrompts(m, ctx);
   }
 };
+
+/** Viewers asking to join while the scorer is mid-over: one tap, no sheet. */
+function joinBanner(m) {
+  if (!live.hosting() || live.host.matchId !== m.id || !live.host.requests.length) return '';
+  return live.host.requests.map(r => `
+    <div class="mb-3 flex items-center gap-2.5 rounded-2xl bg-amber-500/12 border border-amber-500/30 px-3.5 py-3 animate-pop">
+      <span class="text-lg">📡</span>
+      <span class="flex-1 min-w-0 text-[13px] font-semibold text-white">A viewer asks to join the live score</span>
+      <button data-liveacc="${r.id}" class="btn-primary !px-3.5 !py-2 text-xs">Accept</button>
+      <button data-liveign="${r.id}" class="btn-ghost !px-3 !py-2 text-xs">Ignore</button>
+    </div>`).join('');
+}
 
 /* ------------------------------------------------------------------ *
  * Scoreboard
@@ -846,7 +880,8 @@ async function joinStation(m, ctx, forceOffline = false) {
     <h3 class="text-lg font-bold text-white">Add viewers</h3>
     <ol class="mt-2 space-y-1 text-[12px] text-slate-400 leading-snug list-decimal pl-4">
       <li>On their phone: Home → <b class="text-slate-200">Watch a live match</b> → scan this code.</li>
-      <li>When they appear below, tap <b class="text-slate-200">Accept</b>. That is all.</li>
+      <li>When they appear below, tap <b class="text-slate-200">Accept</b>. That is all —
+        and after you close this, new requests appear right on the scoring screen.</li>
     </ol>
     <div class="mt-3 rounded-2xl bg-pure p-2.5 grid place-items-center">
       <canvas id="stQr" class="w-full max-w-[280px] aspect-square [image-rendering:pixelated]"></canvas>
@@ -868,32 +903,37 @@ async function joinStation(m, ctx, forceOffline = false) {
   };
 
   const tour = m.tournamentId ? store.tournament(m.tournamentId) : null;
+  const renderReqs = () => {
+    const box = document.querySelector('#stReqs');
+    if (!box) return;
+    box.innerHTML = live.host.requests.map(r => `
+      <div class="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-3 py-2.5 animate-pop">
+        <span class="flex-1 text-[13px] font-semibold text-white">A viewer asks to join</span>
+        <button class="btn-primary !px-3 !py-1.5 text-xs" data-req="yes" data-reqid="${r.id}">Accept</button>
+        <button class="btn-ghost !px-3 !py-1.5 text-xs" data-req="no" data-reqid="${r.id}">Ignore</button>
+      </div>`).join('');
+    box.querySelectorAll('[data-req]').forEach(b => b.addEventListener('click', async () => {
+      const req = live.host.requests.find(r => r.id === b.dataset.reqid);
+      if (!req) return;
+      if (b.dataset.req === 'no') { req.reject(); return; }
+      status('Connecting…');
+      try { await req.accept(); haptic(20); }
+      catch (err) { status(err.message || 'Could not connect'); }
+    }));
+  };
+  live.host.onChange = () => {
+    status(`${count()}`);
+    renderReqs();
+    if (location.hash.includes(m.id)) ctx.render();
+  };
+
   let code = '';
   try {
-    code = await live.hostRoom(m.id, {
-      room: tour ? live.ensureRoom(tour) : null,
-      onRequest: req => {
-        const box = document.querySelector('#stReqs');
-        if (!box) { req.reject(); return; }
-        const row = document.createElement('div');
-        row.className = 'flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-3 py-2.5 animate-pop';
-        row.innerHTML = `<span class="flex-1 text-[13px] font-semibold text-white">A viewer asks to join</span>
-          <button class="btn-primary !px-3 !py-1.5 text-xs" data-req="yes">Accept</button>
-          <button class="btn-ghost !px-3 !py-1.5 text-xs" data-req="no">Ignore</button>`;
-        row.querySelector('[data-req="yes"]').addEventListener('click', async () => {
-          row.remove();
-          status('Connecting…');
-          try { await req.accept(); haptic(20); }
-          catch (err) { status(err.message || 'Could not connect'); }
-        });
-        row.querySelector('[data-req="no"]').addEventListener('click', () => { req.reject(); row.remove(); });
-        box.appendChild(row);
-        haptic(15);
-      }
-    });
+    code = await live.hostRoom(m.id, { room: tour ? live.ensureRoom(tour) : null });
     const c = document.querySelector('#stQr');
     if (c) { await renderQR(live.joinUrl(code), { canvas: c }); c.dataset.code = code; }
     status(`${count()} · waiting for someone to scan…`);
+    renderReqs();                      // anyone who scanned while this was closed
     if (tour) {
       const el = document.querySelector('#stNote');
       if (el) el.textContent = `This is ${tour.name}’s standing QR — printed copies and early scans all land here`;
@@ -909,9 +949,10 @@ async function joinStation(m, ctx, forceOffline = false) {
   });
 
   const v = await p;
-  live.closeRoom();          // joining closes; the broadcast itself keeps running
   busy = false;
-  if (v === 'offline') return joinStation(m, ctx, true);
+  // The room stays open with the broadcast: anyone scanning later pops up on
+  // the scoring screen itself as an Accept.
+  if (v === 'offline') { live.closeRoom(); return joinStation(m, ctx, true); }
 }
 
 /**

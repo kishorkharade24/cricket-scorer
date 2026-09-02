@@ -228,8 +228,9 @@ export const host = {
   matchId: null,
   peers: [],            // { pc, dc, alive }
   pending: null,        // the peer we have shown a code for, awaiting the reply
+  requests: [],         // viewers waiting for an Accept — wherever the scorer is
   unsub: null,
-  onChange: null,       // UI callback: fn() when the peer count moves
+  onChange: null,       // UI callback: fn() when peers or requests move
   ping: null
 };
 
@@ -274,7 +275,7 @@ export function stopHosting() {
   closeRoom();
   clearInterval(host.ping);
   host.unsub?.();
-  Object.assign(host, { matchId: null, peers: [], pending: null, unsub: null, ping: null });
+  Object.assign(host, { matchId: null, peers: [], pending: null, requests: [], unsub: null, ping: null });
 }
 
 export function closeRoom() {
@@ -310,7 +311,7 @@ export async function roomCodeOf(tournament) {
  * replays the last few minutes, so people who scanned the poster before play
  * began are picked up.
  */
-export async function hostRoom(matchId, { onRequest, room = null }) {
+export async function hostRoom(matchId, { onRequest = null, room = null } = {}) {
   startHosting(matchId);
   closeRoom();
   const topic = room ? room.r : 'cs' + b64u.enc(rnd(10));
@@ -323,9 +324,13 @@ export async function hostRoom(matchId, { onRequest, room = null }) {
     if (msg.t !== 'jo' || !msg.i || seenIds.has(msg.i)) return;
     if (msg.ts && Date.now() - msg.ts > 4 * 60_000) return;   // a request from someone long gone
     seenIds.add(msg.i);
-    onRequest({
+
+    const drop = () => { host.requests = host.requests.filter(r => r.id !== msg.i); host.onChange?.(); };
+    const req = {
       id: msg.i,
+      ts: msg.ts || Date.now(),
       accept: async () => {
+        drop();
         const pc = new RTCPeerConnection(RTC_CFG);
         const peer = { pc, dc: null };
         pc.ondatachannel = e => attachHostChannel(peer, e.channel);
@@ -334,8 +339,13 @@ export async function hostRoom(matchId, { onRequest, room = null }) {
         await gathered(pc);
         await relayPub(topic, await seal(keyRaw, { t: 'ja', i: msg.i, j: packSdp(pc.localDescription.sdp) }));
       },
-      reject: () => { /* silence is the rejection — the viewer times out */ }
-    });
+      reject: () => { drop(); /* silence is the rejection — the viewer times out */ }
+    };
+    // The queue lives here, not in any sheet: a scan that arrives mid-over must
+    // still reach the scorer, whatever screen they are on.
+    host.requests.push(req);
+    host.onChange?.();
+    onRequest?.(req);
   }, room ? 'all' : undefined);   // a standing room replays cached requests;
                                   // the ts check above drops any stale ones
 
