@@ -203,9 +203,9 @@ export async function scanCodeSheet({ title, subtitle }) {
   if (v === 'paste') {
     try {
       const t = (await navigator.clipboard.readText())?.trim();
-      if (t?.startsWith('CSL1.')) return t;
+      if (t && /CSL1\./.test(t)) return t;
     } catch { /* clipboard not readable — ask instead */ }
-    const t = await promptDlg('Paste the code', { placeholder: 'CSL1.…' });
+    const t = await promptDlg('Paste the code or link', { placeholder: 'CSL1.… or https://…' });
     return t?.trim() || null;
   }
   return null;

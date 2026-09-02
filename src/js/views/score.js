@@ -892,7 +892,7 @@ async function joinStation(m, ctx, forceOffline = false) {
       }
     });
     const c = document.querySelector('#stQr');
-    if (c) { await renderQR(code, { canvas: c }); c.dataset.code = code; }
+    if (c) { await renderQR(live.joinUrl(code), { canvas: c }); c.dataset.code = code; }
     status(`${count()} · waiting for someone to scan…`);
     if (tour) {
       const el = document.querySelector('#stNote');
@@ -905,7 +905,7 @@ async function joinStation(m, ctx, forceOffline = false) {
     return joinStation(m, ctx, true);
   }
   document.querySelector('#stCopy')?.addEventListener('click', async () => {
-    toast(await copyText(code) ? 'Code copied — send it any way you like' : 'Could not copy', 'ok');
+    toast(await copyText(live.joinUrl(code)) ? 'Link copied — anyone who opens it starts watching' : 'Could not copy', 'ok');
   });
 
   const v = await p;
@@ -954,7 +954,7 @@ async function cameraStation(m, ctx) {
   const freshQR = async () => {
     currentCode = await live.hostOffer(m.id);
     const c = document.querySelector('#stQr');
-    if (c) { await renderQR(currentCode, { canvas: c }); c.dataset.code = currentCode; }
+    if (c) { await renderQR(live.joinUrl(currentCode), { canvas: c }); c.dataset.code = currentCode; }
   };
 
   try {
@@ -967,15 +967,15 @@ async function cameraStation(m, ctx) {
   }
   status(`${count()} · waiting for a viewer to scan…`);
   document.querySelector('#stCopy')?.addEventListener('click', async () => {
-    toast(await copyText(currentCode) ? 'Code copied — send it any way you like' : 'Could not copy', 'ok');
+    toast(await copyText(live.joinUrl(currentCode)) ? 'Link copied — send it any way you like' : 'Could not copy', 'ok');
   });
 
   // The keyboard path, first-class: on a computer the webcam is often unusable,
   // so a pasted reply connects the moment it lands in this box.
   const replyBox = document.querySelector('#stReply');
   const tryBoxReply = async () => {
-    const t = replyBox?.value.trim();
-    if (!t || !t.startsWith('CSL1.') || seen.has(t) || t.length < 60) return;
+    const t = live.extractCode(replyBox?.value);
+    if (!t || seen.has(t) || t.length < 60) return;
     replyBox.value = '';
     await handleReply(t);
   };

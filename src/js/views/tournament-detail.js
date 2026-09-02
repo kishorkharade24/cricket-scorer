@@ -170,12 +170,12 @@ async function liveQrSheet(t) {
     </div>`, { grab: false });
 
   const canvas = document.querySelector('#tQr');
-  await renderQR(code, { canvas });
+  await renderQR(live.joinUrl(code), { canvas });
   canvas.dataset.code = code;
 
   const v = await p;
   if (v === 'copy') {
-    toast(await copyText(code) ? 'Code copied' : 'Could not copy', 'ok');
+    toast(await copyText(live.joinUrl(code)) ? 'Link copied — opening it joins the match' : 'Could not copy', 'ok');
     return liveQrSheet(t);
   }
   if (v === 'save') {

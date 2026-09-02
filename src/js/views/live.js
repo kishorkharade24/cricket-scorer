@@ -14,6 +14,7 @@ import { closeSheet } from '../util.js';
 
 let step = 'idle';          // idle -> reply/asking/awaiting-play -> watching
 let standing = false;
+let autoTried = null;       // the ?c= code already acted on, so refreshes do not loop
 let tick = null;
 
 export default {
@@ -31,6 +32,14 @@ export default {
 
   mount(root, ctx) {
     const rr = () => ctx.render();
+
+    // Arrived by scanning the QR with the phone's own camera: the address
+    // carries the code, so join without asking for anything.
+    const carried = live.extractCode(ctx.query?.c);
+    if (carried && carried !== autoTried && (step === 'idle' || step === 'lost')) {
+      autoTried = carried;
+      setTimeout(() => startJoin(carried, ctx), 50);
+    }
 
     live.viewer.onUpdate = () => { if (step !== 'watching') step = 'watching'; rr(); };
     live.viewer.onState = st => {
@@ -73,12 +82,16 @@ export default {
 };
 
 async function join(ctx) {
-  const code = await scanCodeSheet({
+  const scanned = await scanCodeSheet({
     title: 'Scan the scorer’s code',
     subtitle: 'On the scoring phone: menu ⋮ → Live scoreboard → Add a viewer.'
   });
-  if (!code) return;
+  if (!scanned) return;
+  const code = live.extractCode(scanned) || scanned;
+  return startJoin(code, ctx);
+}
 
+async function startJoin(code, ctx) {
   let kind;
   try { kind = (await live.decodeBlob(code)).t; }
   catch (err) { toast(err.message || 'That code did not work', 'error'); return; }

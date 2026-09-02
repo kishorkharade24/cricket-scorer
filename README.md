@@ -208,9 +208,12 @@ one that is not dimmed. Toss, venue and the rules a match was played under sit
 at the foot of its scorecard, out of the way.
 
 ### Live scoreboard (one scan to join)
-One phone scores; nearby phones watch it live. Joining is one scan: the scorer
-opens 📡, the viewer scans the QR, the scorer taps **Accept** — the score
-appears on the viewer's phone by itself. One QR serves any number of viewers.
+One phone scores; other phones watch it live — at the ground or from anywhere.
+Joining is one scan **with the phone's ordinary camera, no app needed**: the QR
+is a link, so scanning opens the scoreboard in the browser and asks to join by
+itself; the scorer taps **Accept** and the score appears. The copied code is
+that same link, so pasting it into a chat works identically. One QR serves any
+number of viewers.
 
 **A tournament gets its QR before a ball is bowled.** On the tournament screen,
 the 📡 button shows a standing code you can print on a poster, save as an

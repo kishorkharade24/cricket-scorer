@@ -47,6 +47,22 @@ export async function encodeBlob(obj) {
   return 'CSL1.r.' + b64u.enc(raw);
 }
 
+/**
+ * Viewer-facing QRs carry a link, not bare code text: a phone's own camera
+ * then opens the app in the browser — no install needed to watch — and the
+ * live screen picks the code out of the address and joins by itself.
+ */
+export function joinUrl(code) {
+  if (typeof location === 'undefined') return code;
+  return `${location.origin}${location.pathname}#/live?c=${code}`;
+}
+
+/** Accept a code however it arrives: bare, inside a link, or pasted with fluff. */
+export function extractCode(text) {
+  const m = String(text || '').match(/CSL1\.[dr]\.[A-Za-z0-9_-]+/);
+  return m ? m[0] : null;
+}
+
 export async function decodeBlob(str) {
   const m = String(str || '').trim().match(/^CSL1\.([dr])\.([A-Za-z0-9_-]+)$/);
   if (!m) throw new Error('That is not a Cricket Scorer code.');
