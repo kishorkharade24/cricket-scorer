@@ -62,6 +62,22 @@ export async function decodeBlob(str) {
 const RTC_CFG = { iceServers: [] };   // local network only, on purpose
 
 /**
+ * Browsers hide the phone's real address behind a random "….local" name until
+ * the page has camera permission, and those names often fail to resolve
+ * between devices — the handshake then completes but the connection never
+ * forms. Both sides of ours use the camera anyway (to scan), so asking a
+ * moment early gets literal IP addresses into the candidates. Failure is
+ * fine: it just falls back to the .local names.
+ */
+export async function warmup() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    stream.getTracks().forEach(t => t.stop());
+    return true;
+  } catch { return false; }
+}
+
+/**
  * The QR carries only what a data-channel connection actually needs — the ICE
  * credentials, the DTLS fingerprint and the host candidates — and the SDP is
  * rebuilt from a template on the other side. Browsers pad an offer to ~1.5KB;
@@ -243,7 +259,11 @@ export async function viewerJoin(offerCode) {
     };
   };
   pc.onconnectionstatechange = () => {
-    if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) viewer.onState?.('closed');
+    if (pc.connectionState === 'failed') viewer.onState?.('failed');
+    else if (['disconnected', 'closed'].includes(pc.connectionState)) viewer.onState?.('closed');
+  };
+  pc.oniceconnectionstatechange = () => {
+    if (pc.iceConnectionState === 'failed') viewer.onState?.('failed');
   };
 
   await pc.setRemoteDescription({ type: 'offer', sdp: msg.j ? buildSdp(msg.j) : msg.sdp });
@@ -251,6 +271,18 @@ export async function viewerJoin(offerCode) {
   await gathered(pc);
   viewer.onState?.('connecting');
   return encodeBlob({ p: PROTO, t: 'answer', j: packSdp(pc.localDescription.sdp) });
+}
+
+/** What addresses each side put on the table — the first thing to look at
+ *  when the codes worked but no connection formed. */
+export function candidateSummary() {
+  const parse = sdp => [...String(sdp || '').matchAll(/a=candidate:\S+ 1 udp \d+ (\S+) \d+ typ host/gi)]
+    .map(m => m[1])
+    .map(ip => ip.endsWith('.local') ? 'hidden (.local)' : ip);
+  return {
+    mine: parse(viewer.pc?.localDescription?.sdp),
+    theirs: parse(viewer.pc?.remoteDescription?.sdp)
+  };
 }
 
 export function viewerLeave() {

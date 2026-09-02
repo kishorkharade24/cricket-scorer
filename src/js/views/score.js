@@ -836,6 +836,10 @@ async function addViewer(m, ctx) {
   let code;
   try {
     toast('Preparing a viewer code…', 'info', 1500);
+    // Camera permission first: it is needed to scan the reply in a moment
+    // anyway, and granting it lets the phones exchange real addresses instead
+    // of .local names that often fail to resolve between devices.
+    await live.warmup();
     code = await live.hostOffer(m.id);
   } catch (err) {
     toast('Could not start the live scoreboard on this browser', 'error');

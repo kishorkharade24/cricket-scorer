@@ -10,6 +10,7 @@ import { ballChip, empty } from '../ui.js';
 import { computeInnings, resultText } from '../engine.js';
 import * as live from '../live.js';
 import { scanCodeSheet, showCodeSheet } from '../qr.js';
+import { closeSheet } from '../util.js';
 
 let step = 'idle';          // idle -> reply -> watching
 let tick = null;
@@ -32,9 +33,21 @@ export default {
 
     live.viewer.onUpdate = () => { if (step !== 'watching') step = 'watching'; rr(); };
     live.viewer.onState = st => {
-      if (st === 'open') { step = 'watching'; rr(); }
+      if (st === 'open') {
+        step = 'watching';
+        closeSheet('__dismiss');          // jump to the score the moment it connects
+        rr();
+      }
+      if (st === 'failed' && step === 'reply') { step = 'stuck'; closeSheet('__dismiss'); rr(); }
       if (st === 'closed' && step === 'watching') { step = 'lost'; rr(); }
     };
+    // Waiting forever helps nobody: if the channel has not opened well after
+    // both codes were exchanged, say so and say what usually fixes it.
+    clearTimeout(mount._t);
+    if (step === 'reply') mount._t = setTimeout(() => {
+      if (step === 'reply') { step = 'stuck'; rr(); }
+    }, 30000);
+    function mount() {}
     clearInterval(tick);
     tick = setInterval(() => {
       const el = root.querySelector('#liveDot');
@@ -84,6 +97,31 @@ async function join(ctx) {
 /* ------------------------------------------------------------------ */
 
 function landing() {
+  if (step === 'stuck') {
+    return `<div class="card p-6 animate-fade-in">
+      <div class="mx-auto h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/25 grid place-items-center text-2xl mb-3">🔌</div>
+      <h2 class="text-lg font-bold text-white text-center">The phones can’t reach each other</h2>
+      <p class="mt-2 text-sm text-slate-400 leading-relaxed">The codes worked, but no direct connection formed. In order of likelihood:</p>
+      <ul class="mt-3 space-y-2 text-[13px] text-slate-400 leading-snug list-disc pl-5">
+        <li>The two devices are on <b class="text-slate-200">different networks</b> — put both on the same WiFi, or join the scorer’s hotspot.</li>
+        <li>Venue WiFi with <b class="text-slate-200">client isolation</b> blocks phone-to-phone traffic — the scorer’s hotspot gets around it.</li>
+        <li>A computer’s <b class="text-slate-200">firewall</b> is blocking local connections.</li>
+      </ul>
+      ${(() => {
+        const c = live.candidateSummary();
+        if (!c.mine.length && !c.theirs.length) return '';
+        const show = list => list.length ? list.join(', ') : 'none';
+        const allHidden = list => list.length > 0 && list.every(x => x.startsWith('hidden'));
+        return `<div class="mt-4 rounded-xl bg-white/[.04] border border-white/10 p-3">
+          <p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1.5">What each side offered</p>
+          <p class="text-[11px] text-slate-400 num">This phone: ${esc(show(c.mine))}</p>
+          <p class="text-[11px] text-slate-400 num">Scorer: ${esc(show(c.theirs))}</p>
+          ${allHidden(c.theirs) ? `<p class="mt-1.5 text-[11px] text-amber-300 leading-snug">The scorer's addresses are all hidden — on their device, allowing camera access before creating the code fixes this. Ask them to update the app and try again.</p>` : ''}
+        </div>`;
+      })()}
+      <button data-act="rejoin" class="btn-primary w-full mt-5">Try again</button>
+    </div>`;
+  }
   if (step === 'lost') {
     return empty('📡', 'Connection lost',
       'The scorer stopped, moved off the network, or this screen was locked for a while. Scan their code again to rejoin.',
