@@ -23,7 +23,7 @@ globalThis.window = globalThis;
 globalThis.location = { hash: '#/', protocol: 'http:', replace() {} };
 globalThis.history = { length: 1, back() {} };
 globalThis.CustomEvent = class { constructor(t) { this.type = t; } };
-globalThis.Blob = class { constructor(p) { this.size = (p || []).join('').length; } };
+// Node's own Blob is real (has .stream()); no stub needed.
 Object.defineProperty(globalThis, 'navigator', {
   value: { vibrate() {}, share: undefined, clipboard: undefined },
   configurable: true, writable: true

@@ -34,6 +34,13 @@ export default {
         ${tile('#/teams', '👥', 'Teams', `${d.teams.length} saved · ${d.players.length} players`, 'from-violet-500/20 to-violet-500/5 border-violet-500/25')}
       </div>
 
+      <a href="#/live" class="card-h mt-3 p-3.5 flex items-center gap-3">
+        <span class="h-9 w-9 shrink-0 rounded-xl bg-emerald-500/10 border border-emerald-500/25 grid place-items-center text-base">📡</span>
+        <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-white">Watch a match nearby</span>
+        <span class="block text-[11px] text-slate-500">Live scoreboard from another phone — same WiFi, no internet needed</span></span>
+        <span class="text-slate-600">›</span>
+      </a>
+
       ${tours.length ? `${section('Tournaments', `<a href="#/tournaments" class="text-[11px] font-bold text-emerald-400">See all</a>`)}
         <div class="grid gap-3">${tours.map(tourRow).join('')}</div>` : ''}
 

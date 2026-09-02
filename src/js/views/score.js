@@ -5,6 +5,8 @@ import * as store from '../store.js';
 import { badge, ballChip, empty, teamName, nameOf, ICON, iconBtn, livePill } from '../ui.js';
 import * as E from '../engine.js';
 import { motmCandidates } from '../stats.js';
+import * as live from '../live.js';
+import { showCodeSheet, scanCodeSheet } from '../qr.js';
 
 let armed = null;         // 'wd' | 'nb' | 'b' | 'lb'
 let busy = false;         // a prompt sheet is open
@@ -95,6 +97,7 @@ function scoreboard(m, st, first) {
         ${m.status === 'live' ? livePill() : `<span class="pill bg-white/8 text-slate-400">Result</span>`}
         <span class="text-[11px] text-slate-400 truncate">${esc(teamName(st.battingTeamId))} ${m.innings.length > 1 ? '(2nd inns)' : '(1st inns)'}</span>
         ${st.freeHit ? `<span class="pill bg-amber-400 text-onaccent animate-pop ml-auto">FREE HIT</span>` : ''}
+        ${live.hosting() && live.host.matchId === m.id ? `<span class="pill bg-sky-500/15 text-sky-300 ${st.freeHit ? '' : 'ml-auto'}">📡 ${live.viewerCount()}</span>` : ''}
       </div>
 
       <div class="flex items-end gap-3">
@@ -728,6 +731,9 @@ async function moreMenu(m, ctx) {
   const v = await sheet(`
     <h3 class="text-lg font-bold text-white mb-4">Match options</h3>
     <div class="grid gap-2">
+      ${item('golive', '📡', live.hosting() && live.host.matchId === m.id
+          ? `Live scoreboard · ${live.viewerCount()} watching`
+          : 'Live scoreboard', 'Show the score on nearby phones — no internet needed')}
       ${m.status === 'live' ? item('bowler', '🎯', 'Change bowler', 'Injury or a mid-over switch') : ''}
       ${m.status === 'live' ? item('retire', '🚑', 'Retire a batter', 'Hurt (can return) or retired out') : ''}
       ${m.status === 'live' ? item('penalty', '⚖️', 'Penalty runs', 'Award 5 runs to the batting side') : ''}
@@ -740,6 +746,7 @@ async function moreMenu(m, ctx) {
   if (!v || !v.startsWith('menu:')) return;
   const act = v.slice(5);
 
+  if (act === 'golive') return liveMenu(m, ctx);
   if (act === 'bowler') return askBowler(m, ctx, true);
   if (act === 'card')   return ctx.go('/scorecard/' + m.id);
   if (act === 'share')  return shareScore(m);
@@ -787,6 +794,59 @@ async function moreMenu(m, ctx) {
     store.save(true);
     toast('Match abandoned', 'info');
     ctx.go('/scorecard/' + m.id);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Live scoreboard, scorer's side
+ * ------------------------------------------------------------------ */
+
+async function liveMenu(m, ctx) {
+  live.host.onChange = () => { if (location.hash.includes(m.id)) ctx.render(); };
+
+  const active = live.hosting() && live.host.matchId === m.id;
+  if (active) {
+    const n = live.viewerCount();
+    const v = await sheet(`
+      <h3 class="text-lg font-bold text-white">Live scoreboard</h3>
+      <p class="text-xs text-slate-500 mt-1">${n} phone${n === 1 ? '' : 's'} watching. Each new viewer needs their own code.</p>
+      <div class="mt-4 grid gap-2">
+        <button class="btn-primary" data-close="add">＋ Add a viewer</button>
+        <button class="btn-danger" data-close="stop">Stop broadcasting</button>
+        <button class="btn-ghost" data-close="__dismiss">Close</button>
+      </div>`, { grab: false });
+    if (v === 'stop') { live.stopHosting(); toast('Live scoreboard stopped', 'info'); return; }
+    if (v !== 'add') return;
+  }
+  return addViewer(m, ctx);
+}
+
+async function addViewer(m, ctx) {
+  let code;
+  try {
+    toast('Preparing a viewer code…', 'info', 1500);
+    code = await live.hostOffer(m.id);
+  } catch (err) {
+    toast('Could not start the live scoreboard on this browser', 'error');
+    console.error('[live]', err);
+    return;
+  }
+  const next = await showCodeSheet({
+    title: 'Add a viewer',
+    subtitle: 'On the other phone: Home → Watch a match nearby → scan this. Then come back here for their reply.',
+    code, nextLabel: 'Scan their reply'
+  });
+  if (!next) return;
+  const reply = await scanCodeSheet({
+    title: 'Scan the viewer’s reply',
+    subtitle: 'It is on their screen now.'
+  });
+  if (!reply) return;
+  try {
+    await live.hostAccept(reply);
+    toast(`Connected — ${live.viewerCount()} watching`, 'ok');
+  } catch (err) {
+    toast(err.message || 'Could not connect', 'error', 6000);
   }
 }
 

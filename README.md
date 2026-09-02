@@ -4,8 +4,11 @@ A ball-by-ball cricket scoring app with tournaments, built as an **offline-first
 No backend, no accounts, no network calls of any kind — everything lives in the
 browser's `localStorage` on the device you score on.
 
-Plain HTML + ES modules + Tailwind. No framework, no runtime dependencies —
-not one line of third-party code ships to the browser.
+Plain HTML + ES modules + Tailwind. No framework, no npm runtime dependencies.
+Two single-file libraries are vendored into `src/js/vendor/` for the live
+scoreboard's QR handshake — qrcode-generator (MIT) to draw codes and jsQR
+(Apache-2.0) to read them where the platform has no barcode detector; the
+latter loads only when scanning. Everything else is first-party.
 Source is ~44 KB of CSS and ~197 KB of JS, which is **~61 KB gzipped over the
 wire**, all of it precached on first load.
 
@@ -200,6 +203,22 @@ competition name is a heading over the group rather than a line on every card,
 anything being scored right now sorts to the top, and the winning side is the
 one that is not dimmed. Toss, venue and the rules a match was played under sit
 at the foot of its scorecard, out of the way.
+
+### Live scoreboard (phone to phone, no server)
+One phone scores; nearby phones watch it live. The connection is WebRTC
+peer-to-peer with **no server anywhere** — not even for the introduction, which
+travels as a QR code (or copy-paste): the scorer shows a code, the viewer scans
+it and shows a reply, the scorer scans that back. Connected. From then on every
+ball lands on the watching phones as it is scored.
+
+It works on a shared WiFi or the scorer's hotspot, with no internet at all, and
+deliberately cannot work across the internet (no STUN/TURN is configured).
+Venue WiFi with client isolation will block it — use the hotspot. A watching
+phone that locks its screen drops off and rejoins with a fresh scan; the app
+holds a wake lock on both sides to keep that rare.
+
+Scorer: menu ⋮ on the scoring screen → **Live scoreboard** → Add a viewer.
+Viewer: Home → **Watch a match nearby**.
 
 ### Sharing
 Any scorecard can go out as a **picture** — 1080px wide, drawn on a canvas with

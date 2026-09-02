@@ -441,5 +441,43 @@ t('an explicit code is respected', () => {
   assert.equal(store.addTeam({ name: 'Anything', short: 'zzz' }).short, 'ZZZ');
 });
 
+console.log('\nN. Live scoreboard plumbing');
+const live = await import('../src/js/live.js');
+{
+  const sdp = 'v=0\r\n' + 'a=candidate:1 1 udp 2122 192.168.1.9 5000 typ host\r\n'.repeat(8);
+  const code = await live.encodeBlob({ p: 'cslive1', t: 'offer', sdp });
+  const back = await live.decodeBlob(code);
+  t('the connection code is compact and prefixed', () => {
+    assert.ok(code.startsWith('CSL1.'));
+    assert.ok(code.length < JSON.stringify({ sdp }).length, 'compression should shrink it');
+  });
+  t('decoding restores the message exactly', () => {
+    assert.equal(back.sdp, sdp);
+    assert.equal(back.t, 'offer');
+  });
+  const junk1 = await live.decodeBlob('hello').then(() => null, e => e);
+  const junk2 = await live.decodeBlob('CSL1.d.@@@@').then(() => null, e => e);
+  t('junk codes are rejected with a plain sentence', () => {
+    assert.match(junk1?.message || '', /not a Cricket Scorer code/);
+    assert.ok(junk2 instanceof Error, 'corrupt payloads must throw, not crash');
+  });
+}
+t('the bundle carries everything a viewer needs to render names', () => {
+  store.resetAll();
+  const a = store.addTeam({ name: 'Lions' }), b2 = store.addTeam({ name: 'Tigers' });
+  ['L1','L2'].forEach(n => store.addPlayer(a.id, { name: n }));
+  ['T1','T2'].forEach(n => store.addPlayer(b2.id, { name: n }));
+  const xi = { [a.id]: store.players(a.id).map(p => p.id), [b2.id]: store.players(b2.id).map(p => p.id) };
+  const m = E.newMatch({ teamA: a.id, teamB: b2.id, overs: 2, playersPerSide: 2, maxOversPerBowler: 2, xi,
+    toss: { winnerId: a.id, decision: 'bat' } });
+  store.addMatch(m);
+  const bun = live.bundle(m.id);
+  assert.equal(bun.proto, 'cslive1');
+  assert.equal(bun.teams.length, 2);
+  assert.equal(bun.players.length, 4);
+  assert.equal(bun.match.id, m.id);
+  assert.ok(JSON.stringify(bun).length < 20000, 'a bundle should stay a few KB');
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
