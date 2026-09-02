@@ -853,7 +853,7 @@ async function joinStation(m, ctx, forceOffline = false) {
     </div>
     <div id="stReqs" class="grid gap-2 mt-3"></div>
     <p id="stStatus" class="mt-2 text-center text-[11px] font-semibold text-slate-400"></p>
-    <p class="mt-1 text-center text-[10px] text-slate-600">One QR for any number of viewers · the score itself never leaves the ground</p>
+    <p id="stNote" class="mt-1 text-center text-[10px] text-slate-600">One QR for any number of viewers · the score itself never leaves the ground</p>
     <div class="mt-3 grid grid-cols-3 gap-2">
       <button id="stCopy" class="btn-ghost text-xs">Copy code</button>
       <button class="btn-ghost text-xs" data-close="offline">Offline mode</button>
@@ -867,9 +867,11 @@ async function joinStation(m, ctx, forceOffline = false) {
     if (location.hash.includes(m.id)) ctx.render();
   };
 
+  const tour = m.tournamentId ? store.tournament(m.tournamentId) : null;
   let code = '';
   try {
     code = await live.hostRoom(m.id, {
+      room: tour ? live.ensureRoom(tour) : null,
       onRequest: req => {
         const box = document.querySelector('#stReqs');
         if (!box) { req.reject(); return; }
@@ -892,6 +894,10 @@ async function joinStation(m, ctx, forceOffline = false) {
     const c = document.querySelector('#stQr');
     if (c) { await renderQR(code, { canvas: c }); c.dataset.code = code; }
     status(`${count()} · waiting for someone to scan…`);
+    if (tour) {
+      const el = document.querySelector('#stNote');
+      if (el) el.textContent = `This is ${tour.name}’s standing QR — printed copies and early scans all land here`;
+    }
   } catch (err) {
     console.error('[live]', err);
     closeSheet('__dismiss'); busy = false;

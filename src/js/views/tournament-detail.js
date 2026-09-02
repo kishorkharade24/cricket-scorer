@@ -1,10 +1,12 @@
 /* Tournament detail — fixtures, points table, bracket and leaderboards. */
 
-import { esc, fixed, confirmDlg, toast, copyText } from '../util.js';
+import { esc, fixed, confirmDlg, toast, copyText, sheet } from '../util.js';
 import * as store from '../store.js';
 import { badge, empty, teamName, nameOf, tabs, ICON, iconBtn } from '../ui.js';
 import { resolveSlot, playoffFixtures } from '../fixtures.js';
 import { pointsTable, leaderboards, statesOf } from '../stats.js';
+import * as live from '../live.js';
+import { renderQR } from '../qr.js';
 import { resultText } from '../engine.js';
 
 let tab = 'fixtures';
@@ -19,7 +21,10 @@ export default {
     const done = store.matches().filter(m => m.tournamentId === t.id && m.status === 'completed').length;
     return `${t.teamIds.length} teams · ${done}/${(t.fixtures || []).length} played · ${t.overs} ov`;
   },
-  actions: () => `${iconBtn('share', ICON.share, 'Share standings')}${iconBtn('del', ICON.trash, 'Delete tournament', 'hover:text-rose-300')}`,
+  actions: () => {
+    const antenna = '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 11v9"/><circle cx="12" cy="9.5" r="1.6" fill="currentColor" stroke="none"/><path d="M8.5 6a5 5 0 0 0 0 7M15.5 6a5 5 0 0 1 0 7M5.6 3.4a9 9 0 0 0 0 12.2M18.4 3.4a9 9 0 0 1 0 12.2"/></svg>';
+    return `${iconBtn('livecode', antenna, 'Live scoreboard QR')}${iconBtn('share', ICON.share, 'Share standings')}${iconBtn('del', ICON.trash, 'Delete tournament', 'hover:text-rose-300')}`;
+  },
 
   render(ctx) {
     const t = store.tournament(ctx.id);
@@ -72,6 +77,8 @@ export default {
       ctx.render();
     });
 
+    document.querySelector('#pageActions [data-act="livecode"]')?.addEventListener('click', () => liveQrSheet(t));
+
     document.querySelector('#pageActions [data-act="del"]')?.addEventListener('click', async () => {
       if (!await confirmDlg(`Delete ${t.name}?`, 'The fixture list and table go away. Choose whether the matches themselves are also deleted.', 'Delete')) return;
       const also = await confirmDlg('Delete its matches too?', 'Keep them and they become standalone matches in your Matches list.', 'Delete matches too');
@@ -87,6 +94,66 @@ export default {
     });
   }
 };
+
+/**
+ * The tournament's standing live-scoreboard QR. It exists before a ball is
+ * bowled, so it can go on the poster or in the group chat: scan it any time,
+ * and when a match in this tournament goes live the scorer taps Accept.
+ */
+async function liveQrSheet(t) {
+  let code;
+  try { code = await live.roomCodeOf(t); }
+  catch (err) { console.error(err); toast('Could not create the code', 'error'); return; }
+
+  const p = sheet(`
+    <h3 class="text-lg font-bold text-white">Live scoreboard QR</h3>
+    <p class="text-xs text-slate-500 mt-1 leading-snug">One code for the whole tournament — print it, put it in the
+      group, stick it by the pitch. Anyone can scan it <b class="text-slate-300">before play even starts</b>;
+      when a match goes live, the scorer taps Accept and they are in. Needs internet on both sides
+      (a hotspot counts).</p>
+    <div class="mt-3 rounded-2xl bg-pure p-2.5 grid place-items-center">
+      <canvas id="tQr" class="w-full max-w-[300px] aspect-square [image-rendering:pixelated]"></canvas>
+    </div>
+    <div class="mt-3 grid grid-cols-3 gap-2">
+      <button data-close="copy" class="btn-ghost text-xs">Copy code</button>
+      <button data-close="save" class="btn-ghost text-xs">Save image</button>
+      <button data-close="__dismiss" class="btn-primary text-xs">Done</button>
+    </div>`, { grab: false });
+
+  const canvas = document.querySelector('#tQr');
+  await renderQR(code, { canvas });
+  canvas.dataset.code = code;
+
+  const v = await p;
+  if (v === 'copy') {
+    toast(await copyText(code) ? 'Code copied' : 'Could not copy', 'ok');
+    return liveQrSheet(t);
+  }
+  if (v === 'save') {
+    const out = document.createElement('canvas');
+    const Q = 840, PADQ = 60;
+    out.width = Q; out.height = Q + 110;
+    const cx = out.getContext('2d');
+    cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, out.width, out.height);
+    cx.imageSmoothingEnabled = false;
+    cx.drawImage(canvas, PADQ, PADQ, Q - PADQ * 2, Q - PADQ * 2);
+    cx.fillStyle = '#0f172a'; cx.textAlign = 'center';
+    cx.font = '700 40px system-ui, sans-serif';
+    cx.fillText(t.name, Q / 2, Q + 8, Q - 80);
+    cx.font = '500 26px system-ui, sans-serif';
+    cx.fillStyle = '#64748b';
+    cx.fillText('Scan to watch live — Cricket Scorer', Q / 2, Q + 52, Q - 80);
+    out.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${t.name.replace(/\s+/g, '-')}-live-qr.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }, 'image/png');
+    toast('QR image saved — print it or share it', 'ok');
+    return liveQrSheet(t);
+  }
+}
 
 /* ------------------------------------------------------------------ *
  * Fixtures

@@ -177,8 +177,8 @@ async function unseal(keyRaw, str) {
   return JSON.parse(new TextDecoder().decode(pt));
 }
 
-function relaySub(topic, onMsg) {
-  const ws = new WebSocket(`${RELAY.replace('https', 'wss')}/${topic}/ws`);
+function relaySub(topic, onMsg, since) {
+  const ws = new WebSocket(`${RELAY.replace('https', 'wss')}/${topic}/ws${since ? `?since=${since}` : ''}`);
   ws.onmessage = e => {
     try {
       const m = JSON.parse(e.data);
@@ -267,22 +267,45 @@ export function closeRoom() {
 }
 
 /**
+ * A tournament's standing room: the same {topic, key} for its whole life, so
+ * the QR can be printed before a ball is bowled. Generated once and saved on
+ * the tournament.
+ */
+export function ensureRoom(tournament) {
+  if (!tournament.live?.r || !tournament.live?.k) {
+    tournament.live = { r: 'cs' + b64u.enc(rnd(10)), k: b64u.enc(rnd(16)) };
+    store.save(true);
+  }
+  return tournament.live;
+}
+
+/** The code for that standing room — `s:1` marks it as one worth waiting on. */
+export async function roomCodeOf(tournament) {
+  const room = ensureRoom(tournament);
+  return encodeBlob({ p: PROTO, t: 'room', s: 1, r: room.r, k: room.k });
+}
+
+/**
  * One-scan hosting: open a room on the relay and hand back a short code.
  * Each viewer that scans it sends a join request; `onRequest` gets
  * { accept, reject } and the scorer decides. One QR serves any number of
- * viewers because each brings its own connection offer.
+ * viewers because each brings its own connection offer. Pass `room` to host
+ * a standing (tournament) room instead of a throwaway one — its subscription
+ * replays the last few minutes, so people who scanned the poster before play
+ * began are picked up.
  */
-export async function hostRoom(matchId, { onRequest }) {
+export async function hostRoom(matchId, { onRequest, room = null }) {
   startHosting(matchId);
   closeRoom();
-  const topic = 'cs' + b64u.enc(rnd(10));
-  const keyRaw = rnd(16);
+  const topic = room ? room.r : 'cs' + b64u.enc(rnd(10));
+  const keyRaw = room ? b64u.dec(room.k) : rnd(16);
   const seenIds = new Set();
 
   const ws = relaySub(topic, async sealed => {
     let msg;
     try { msg = await unseal(keyRaw, sealed); } catch { return; }   // not ours
     if (msg.t !== 'jo' || !msg.i || seenIds.has(msg.i)) return;
+    if (msg.ts && Date.now() - msg.ts > 4 * 60_000) return;   // a request from someone long gone
     seenIds.add(msg.i);
     onRequest({
       id: msg.i,
@@ -297,10 +320,11 @@ export async function hostRoom(matchId, { onRequest }) {
       },
       reject: () => { /* silence is the rejection — the viewer times out */ }
     });
-  });
+  }, room ? 'all' : undefined);   // a standing room replays cached requests;
+                                  // the ts check above drops any stale ones
 
   host.room = { topic, keyRaw, ws };
-  return encodeBlob({ p: PROTO, t: 'room', r: topic, k: b64u.enc(keyRaw) });
+  return encodeBlob({ p: PROTO, t: 'room', ...(room ? { s: 1 } : {}), r: topic, k: b64u.enc(keyRaw) });
 }
 
 /**
@@ -340,9 +364,22 @@ export async function viewerJoinRoom(code, { onStatus } = {}) {
 
   await pc.setLocalDescription(await pc.createOffer());
   await gathered(pc);
-  await relayPub(msg.r, await seal(keyRaw, { t: 'jo', i: myId, j: packSdp(pc.localDescription.sdp) }));
+  const request = () => seal(keyRaw, { t: 'jo', i: myId, ts: Date.now(), j: packSdp(pc.localDescription.sdp) });
+  await relayPub(msg.r, await request());
+
+  // A standing (tournament) code may be scanned long before play begins, so
+  // keep the request fresh until the scorer shows up — for half an hour.
+  if (msg.s) {
+    let times = 0;
+    viewer.repub = setInterval(async () => {
+      if (++times > 45 || viewer.pc !== pc || pc.connectionState === 'connected') {
+        clearInterval(viewer.repub); viewer.repub = null; return;
+      }
+      try { await relayPub(msg.r, await request()); } catch { /* offline blip */ }
+    }, 40_000);
+  }
   onStatus?.('waiting-accept');
-  return true;
+  return !!msg.s;
 }
 
 function attachHostChannel(peer, dc) {
@@ -453,6 +490,7 @@ export function candidateSummary() {
 }
 
 export function viewerLeave() {
+  clearInterval(viewer.repub);
   try { viewer.dc?.close(); viewer.pc?.close(); } catch { /* ignore */ }
-  Object.assign(viewer, { pc: null, dc: null });
+  Object.assign(viewer, { pc: null, dc: null, repub: null });
 }

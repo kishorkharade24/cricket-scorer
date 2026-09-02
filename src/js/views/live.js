@@ -12,7 +12,8 @@ import * as live from '../live.js';
 import { scanCodeSheet, showCodeSheet } from '../qr.js';
 import { closeSheet } from '../util.js';
 
-let step = 'idle';          // idle -> reply -> watching
+let step = 'idle';          // idle -> reply/asking/awaiting-play -> watching
+let standing = false;
 let tick = null;
 
 export default {
@@ -24,7 +25,7 @@ export default {
 
   render() {
     if (step === 'watching' && live.viewer.lastBundle) return board(live.viewer.lastBundle);
-    if (step === 'reply' || step === 'asking') return waiting();
+    if (step === 'reply' || step === 'asking' || step === 'awaiting-play') return waiting();
     return landing();
   },
 
@@ -38,13 +39,14 @@ export default {
         closeSheet('__dismiss');          // jump to the score the moment it connects
         rr();
       }
-      if (st === 'failed' && (step === 'reply' || step === 'asking')) { step = 'stuck'; closeSheet('__dismiss'); rr(); }
+      if (st === 'failed' && (step === 'reply' || step === 'asking') && !standing) { step = 'stuck'; closeSheet('__dismiss'); rr(); }
       if (st === 'closed' && step === 'watching') { step = 'lost'; rr(); }
     };
     // Waiting forever helps nobody: if the channel has not opened well after
     // both codes were exchanged, say so and say what usually fixes it.
     clearTimeout(mount._t);
-    if (step === 'reply' || step === 'asking') mount._t = setTimeout(() => {
+    // A tournament code scanned before play has nothing to time out on.
+    if ((step === 'reply' || step === 'asking') && !standing) mount._t = setTimeout(() => {
       if (step === 'reply' || step === 'asking') { step = 'stuck'; rr(); }
     }, 45000);
     function mount() {}
@@ -57,7 +59,7 @@ export default {
     }, 2000);
 
     root.querySelector('[data-act="join"]')?.addEventListener('click', () => join(ctx));
-    root.querySelector('[data-act="rejoin"]')?.addEventListener('click', () => { step = 'idle'; live.viewerLeave(); rr(); });
+    root.querySelector('[data-act="rejoin"]')?.addEventListener('click', () => { step = 'idle'; standing = false; live.viewerLeave(); rr(); });
     root.querySelector('[data-act="leave"]')?.addEventListener('click', () => {
       live.viewerLeave(); step = 'idle'; ctx.go('/');
     });
@@ -85,10 +87,11 @@ async function join(ctx) {
     step = 'asking';
     ctx.render();
     try {
-      await live.viewerJoinRoom(code);
+      standing = await live.viewerJoinRoom(code);   // true for a tournament code
+      if (standing) { step = 'awaiting-play'; ctx.render(); }
     } catch (err) {
       toast(err.message || 'Could not ask to join', 'error', 6000);
-      step = 'idle'; ctx.render();
+      step = 'idle'; standing = false; ctx.render();
     }
     return;                        // onState 'open' flips this to the scoreboard
   }
@@ -158,6 +161,15 @@ function landing() {
 }
 
 function waiting() {
+  if (step === 'awaiting-play') {
+    return `<div class="card p-6 text-center animate-fade-in">
+      <div class="mx-auto h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/25 grid place-items-center text-2xl mb-3">🏏</div>
+      <p class="text-sm font-semibold text-white">Waiting for play to begin</p>
+      <p class="mt-2 text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">You are in the queue for this tournament.
+        When the scorer goes live and taps Accept, the score appears here by itself. Keep this screen open.</p>
+      <button data-act="rejoin" class="btn-ghost mt-5 text-xs">Cancel</button>
+    </div>`;
+  }
   const asking = step === 'asking';
   return `<div class="card p-6 text-center animate-fade-in">
     <div class="mx-auto h-10 w-10 rounded-full border-2 border-emerald-400/30 border-t-emerald-400 animate-spin mb-4"></div>

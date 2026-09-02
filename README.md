@@ -212,6 +212,12 @@ One phone scores; nearby phones watch it live. Joining is one scan: the scorer
 opens 📡, the viewer scans the QR, the scorer taps **Accept** — the score
 appears on the viewer's phone by itself. One QR serves any number of viewers.
 
+**A tournament gets its QR before a ball is bowled.** On the tournament screen,
+the 📡 button shows a standing code you can print on a poster, save as an
+image, or drop in the group chat days early. People can scan it any time and
+wait; when the scorer goes live on any match in that tournament, everyone who
+scanned appears as an Accept, including those who scanned before play began.
+
 The score itself always flows **phone-to-phone over the local network** — it
 never touches a server. The one thing that may cross the internet is the
 ~300-byte connection handshake, sent through a public message relay
