@@ -29,8 +29,18 @@ export default {
     if (!m) return '';
     return `${m.overs} ov · ${m.stage || 'Friendly'}${m.venue ? ' · ' + m.venue : ''}`;
   },
-  actions: ctx => `<a href="#/scorecard/${ctx.id}" class="h-9 w-9 rounded-xl bg-white/5 border border-white/10 grid place-items-center text-slate-300 hover:bg-white/10 active:scale-90 transition" aria-label="Scorecard">${ICON.card}</a>
-    ${iconBtn('more', '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>', 'More options')}`,
+  actions: ctx => {
+    const m = store.match(ctx.id);
+    const on = m && live.hosting() && live.host.matchId === m.id;
+    const antenna = '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 11v9"/><circle cx="12" cy="9.5" r="1.6" fill="currentColor" stroke="none"/><path d="M8.5 6a5 5 0 0 0 0 7M15.5 6a5 5 0 0 1 0 7M5.6 3.4a9 9 0 0 0 0 12.2M18.4 3.4a9 9 0 0 1 0 12.2"/></svg>';
+    return `<button data-act="golive" aria-label="Live scoreboard" title="Live scoreboard"
+        class="h-9 rounded-xl border grid place-items-center px-2 active:scale-90 transition ${on
+          ? 'bg-sky-500/15 border-sky-500/30 text-sky-300' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}">
+        <span class="flex items-center gap-1">${antenna}${on ? `<span class="num text-[11px] font-bold">${live.viewerCount()}</span>` : ''}</span>
+      </button>
+      <a href="#/scorecard/${ctx.id}" class="h-9 w-9 rounded-xl bg-white/5 border border-white/10 grid place-items-center text-slate-300 hover:bg-white/10 active:scale-90 transition" aria-label="Scorecard">${ICON.card}</a>
+      ${iconBtn('more', '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>', 'More options')}`;
+  },
 
   render(ctx) {
     const m = store.match(ctx.id);
@@ -75,6 +85,7 @@ export default {
     root.querySelector('[data-act="bigruns"]')?.addEventListener('click', () => bigRuns(m, ctx));
     root.querySelectorAll('[data-act="pickbowler"]').forEach(b => b.addEventListener('click', () => askBowler(m, ctx, true)));
     document.querySelector('#pageActions [data-act="more"]')?.addEventListener('click', () => moreMenu(m, ctx));
+    document.querySelector('#pageActions [data-act="golive"]')?.addEventListener('click', () => liveMenu(m, ctx));
 
     if (!busy) ensurePrompts(m, ctx);
   }
