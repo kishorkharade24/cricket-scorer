@@ -3,7 +3,7 @@
 import { esc, fixed, confirmDlg, toast, copyText, sheet } from '../util.js';
 import * as store from '../store.js';
 import { badge, empty, teamName, nameOf, tabs, ICON, iconBtn } from '../ui.js';
-import { resolveSlot, playoffFixtures } from '../fixtures.js';
+import { resolveSlot, playoffFixtures, iplPlayoffs, thirdPlaceFixture } from '../fixtures.js';
 import { pointsTable, leaderboards, statesOf } from '../stats.js';
 import * as live from '../live.js';
 import { renderQR } from '../qr.js';
@@ -65,17 +65,66 @@ export default {
 
     root.querySelector('[data-act="playoffs"]')?.addEventListener('click', async () => {
       const table = pointsTable(t, store.matches()).filter(r => r.p > 0);
-      const n = table.length >= 4 ? 4 : 2;
       if (table.length < 2) return toast('Play some league matches first', 'warn');
-      if (!await confirmDlg(`Add ${n === 4 ? 'semi-finals and a final' : 'a final'}?`,
-        `The top ${n} of the table qualify: ${table.slice(0, n).map(r => teamName(r.teamId)).join(', ')}.`, 'Add playoffs', false)) return;
-      const seeds = table.slice(0, n).map(r => r.teamId);
-      t.fixtures.push(...playoffFixtures(seeds));
+      const four = table.length >= 4;
+      const names = n => table.slice(0, n).map(r => teamName(r.teamId)).join(', ');
+
+      let choice = 'simple';
+      if (four) {
+        const v = await sheet(`
+          <h3 class="text-lg font-bold text-white">How should the playoffs run?</h3>
+          <p class="text-xs text-slate-500 mt-1">Top four qualify: ${esc(names(4))}.</p>
+          <div class="mt-4 grid gap-2">
+            <button data-close="simple" class="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-3 text-left hover:bg-white/10 transition">
+              <span class="block text-sm font-semibold text-white">Semi-finals + Final</span>
+              <span class="block text-[11px] text-slate-500">1st v 4th, 2nd v 3rd — winners meet. Lose once and you are out.</span></button>
+            <button data-close="ipl" class="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-3 text-left hover:bg-white/10 transition">
+              <span class="block text-sm font-semibold text-white">IPL-style Qualifiers</span>
+              <span class="block text-[11px] text-slate-500">Qualifier 1 (1st v 2nd), Eliminator (3rd v 4th), then the Qualifier 1
+                loser meets the Eliminator winner for the last Final spot.</span></button>
+            <button data-close="__dismiss" class="btn-ghost">Cancel</button>
+          </div>`, { grab: false });
+        if (v !== 'simple' && v !== 'ipl') return;
+        choice = v;
+      } else if (!await confirmDlg('Add a final?', `The top two qualify: ${names(2)}.`, 'Add the final', false)) {
+        return;
+      }
+
+      const seeds = table.slice(0, four ? 4 : 2).map(r => r.teamId);
+      t.fixtures.push(...(choice === 'ipl' ? iplPlayoffs(seeds) : playoffFixtures(seeds)));
       t.tableStages = t.tableStages || ['League', ...(t.groups || []).map(g => `Group ${g.name}`)];
       store.save(true);
-      toast('Playoff fixtures added', 'ok');
+      toast(choice === 'ipl' ? 'Qualifier fixtures added' : 'Playoff fixtures added', 'ok');
       ctx.render();
     });
+
+    root.querySelector('[data-act="third"]')?.addEventListener('click', () => {
+      const semis = (t.fixtures || []).filter(f => f.stage === 'Semi-Final');
+      const maxRound = Math.max(...t.fixtures.map(f => f.round || 1));
+      t.fixtures.push(thirdPlaceFixture(semis[0], semis[1], maxRound));
+      store.save(true);
+      toast('3rd-place match added', 'ok');
+      ctx.render();
+    });
+
+    root.querySelectorAll('[data-editfx]').forEach(b => b.addEventListener('click', () => editFixture(t, b.dataset.editfx, ctx)));
+    root.querySelectorAll('[data-delfx]').forEach(b => b.addEventListener('click', async () => {
+      if (!await confirmDlg('Remove this fixture?', 'Only the unplayed fixture goes — nothing that has been scored is touched.', 'Remove')) return;
+      t.fixtures = t.fixtures.filter(f => f.id !== b.dataset.delfx);
+      store.save(true);
+      ctx.render();
+    }));
+    root.querySelectorAll('[data-act="addfx"]').forEach(b => b.addEventListener('click', () => editFixture(t, null, ctx)));
+    root.querySelectorAll('[data-fxmove]').forEach(b => b.addEventListener('click', () => {
+      const [fid, dir] = b.dataset.fxmove.split(':');
+      const arr = t.fixtures;
+      const i = arr.findIndex(f => f.id === fid);
+      const j = dir === 'up' ? i - 1 : i + 1;
+      if (i < 0 || j < 0 || j >= arr.length) return;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      store.save(true);
+      ctx.render();
+    }));
 
     document.querySelector('#pageActions [data-act="livecode"]')?.addEventListener('click', () => liveQrSheet(t));
 
@@ -161,7 +210,13 @@ async function liveQrSheet(t) {
 
 function fixturesView(t) {
   const fixtures = t.fixtures || [];
-  if (!fixtures.length) return empty('📅', 'No fixtures', 'Something went wrong building the schedule.');
+  if (!fixtures.length) {
+    return empty('📅', t.format === 'custom' ? 'Your schedule, your rules' : 'No fixtures',
+      t.format === 'custom'
+        ? 'Add fixtures one by one — any pairing, any stage, any order. Nothing is decided for you.'
+        : 'Something went wrong building the schedule.',
+      '<button data-act="addfx" class="btn-primary">+ Add the first fixture</button>');
+  }
 
   const groups = new Map();
   for (const f of fixtures) {
@@ -174,25 +229,91 @@ function fixturesView(t) {
     fixtures.filter(f => !f.playoff).every(f => store.match(f.matchId)?.status === 'completed') &&
     !fixtures.some(f => f.playoff);
 
+  const semis = fixtures.filter(f => f.stage === 'Semi-Final');
+  const thirdPossible = semis.length === 2 &&
+    semis.every(f => store.match(f.matchId)?.status === 'completed') &&
+    !fixtures.some(f => f.stage === '3rd Place');
+
   return `
     ${leagueDone ? `<button data-act="playoffs" class="w-full card-h p-4 mb-4 flex items-center gap-3 text-left">
       <span class="h-10 w-10 rounded-xl bg-amber-500/15 border border-amber-500/25 grid place-items-center text-lg">🏅</span>
       <span class="flex-1"><span class="block text-sm font-bold text-white">League complete — add playoffs</span>
       <span class="block text-[11px] text-slate-500">Semi-finals and a final from the top of the table</span></span>
       <span class="text-slate-600">›</span></button>` : ''}
+    ${thirdPossible ? `<button data-act="third" class="w-full card-h p-4 mb-4 flex items-center gap-3 text-left">
+      <span class="h-10 w-10 rounded-xl bg-amber-500/15 border border-amber-500/25 grid place-items-center text-lg">🥉</span>
+      <span class="flex-1"><span class="block text-sm font-bold text-white">Add a 3rd-place match</span>
+      <span class="block text-[11px] text-slate-500">The two semi-final losers play for bronze</span></span>
+      <span class="text-slate-600">›</span></button>` : ''}
     ${[...groups.entries()].map(([label, list]) => `
       <div class="mb-5">
         <h3 class="text-[11px] font-bold uppercase tracking-[.12em] text-slate-500 mb-2.5">${esc(label)}</h3>
         <div class="grid gap-2">${list.map(f => fixtureRow(f, t)).join('')}</div>
-      </div>`).join('')}`;
+      </div>`).join('')}
+    <button data-act="addfx" class="w-full rounded-2xl border border-dashed border-white/15 py-3 text-xs font-semibold text-slate-400 hover:text-emerald-300 hover:border-emerald-400/40 transition">
+      + Add a fixture of your own</button>`;
+}
+
+/** Change who plays whom, for a fixture nobody has scored yet. */
+async function editFixture(t, fixtureId, ctx) {
+  const fx = fixtureId ? t.fixtures.find(f => f.id === fixtureId) : null;
+  const cur = k => (fx?.[k]?.type === 'team' ? fx[k].id : '');
+  const opts = sel => t.teamIds.map(id =>
+    `<option value="${id}" ${id === sel ? 'selected' : ''}>${esc(teamName(id))}</option>`).join('');
+
+  const p = sheet(`
+    <h3 class="text-lg font-bold text-white">${fx ? 'Edit fixture' : 'Add a fixture'}</h3>
+    <p class="text-xs text-slate-500 mt-1">You decide who goes against whom — the auto-draw is only a starting point.</p>
+    <label class="label mt-4">Team A</label>
+    <select id="fxA" class="field">${opts(cur('a'))}</select>
+    <label class="label mt-3">Team B</label>
+    <select id="fxB" class="field">${opts(cur('b') || t.teamIds.find(id => id !== (cur('a') || t.teamIds[0])))}</select>
+    <label class="label mt-3">Stage <span class="normal-case text-slate-600">(labels the fixture; a Final crowns the champion)</span></label>
+    <select id="fxStage" class="field">
+      ${['League', 'Quarter-Final', 'Semi-Final', 'Qualifier 1', 'Eliminator', 'Qualifier 2', '3rd Place', 'Final']
+        .map(st => `<option ${st === (fx?.stage || 'League') ? 'selected' : ''}>${st}</option>`).join('')}
+    </select>
+    <div class="mt-5 grid grid-cols-2 gap-3">
+      <button class="btn-ghost" data-close="__dismiss">Cancel</button>
+      <button class="btn-primary" data-close="savefx">${fx ? 'Save' : 'Add'}</button>
+    </div>`, { grab: false });
+
+  // Read the selects while they exist — the sheet's close wipes its DOM before
+  // any later listener gets a look at it.
+  let a = document.querySelector('#fxA')?.value;
+  let b = document.querySelector('#fxB')?.value;
+  let stage = document.querySelector('#fxStage')?.value || 'League';
+  document.querySelector('#fxA')?.addEventListener('change', e => { a = e.target.value; });
+  document.querySelector('#fxB')?.addEventListener('change', e => { b = e.target.value; });
+  document.querySelector('#fxStage')?.addEventListener('change', e => { stage = e.target.value; });
+
+  const v = await p;
+  if (v !== 'savefx') return;
+
+  if (!a || !b || a === b) return toast('Pick two different teams', 'warn');
+  if (fx) {
+    fx.a = { type: 'team', id: a };
+    fx.b = { type: 'team', id: b };
+    fx.stage = stage;
+  } else {
+    const { uid } = await import('../util.js');
+    t.fixtures.push({ id: uid('fx'), stage, round: Math.max(1, ...t.fixtures.map(x => x.round || 1)),
+      no: t.fixtures.length + 1, a: { type: 'team', id: a }, b: { type: 'team', id: b }, matchId: null });
+  }
+  store.save(true);
+  ctx.render();
 }
 
 function fixtureRow(f, t) {
   const m = f.matchId ? store.match(f.matchId) : null;
   const a = resolveSlot(f.a, t.fixtures, store.match);
   const b = resolveSlot(f.b, t.fixtures, store.match);
-  const slotLabel = s => s.type === 'team' ? (s.id ? teamName(s.id) : 'BYE')
-    : `Winner of ${(t.fixtures.find(x => x.id === s.fixtureId)?.stage) || 'previous'} ${(t.fixtures.find(x => x.id === s.fixtureId)?.no) || ''}`.trim();
+  const slotLabel = s => {
+    if (s.type === 'team') return s.id ? teamName(s.id) : 'BYE';
+    const feed = t.fixtures.find(x => x.id === s.fixtureId);
+    const which = s.type === 'loser' ? 'Loser' : 'Winner';
+    return `${which} of ${feed?.stage || 'previous'}${feed?.stage === 'Semi-Final' || feed?.stage === 'League' ? ' ' + (feed?.no || '') : ''}`.trim();
+  };
 
   if (m) {
     const states = statesOf(m);
@@ -226,8 +347,16 @@ function fixtureRow(f, t) {
           <span class="text-[13px] font-semibold truncate ${id ? 'text-white' : 'text-slate-500'}">${esc(id ? teamName(id) : slotLabel(slot))}</span>
         </div>`).join('')}
       </div>
-      <button data-play="${f.id}" ${ready ? '' : 'disabled'}
-        class="btn-primary !px-3 !py-2 text-xs shrink-0">Score</button>
+      <div class="flex flex-col items-end gap-1.5 shrink-0">
+        <button data-play="${f.id}" ${ready ? '' : 'disabled'}
+          class="btn-primary !px-3 !py-2 text-xs">Score</button>
+        <div class="flex gap-1">
+          <button data-fxmove="${f.id}:up" class="h-7 w-7 rounded-lg bg-white/5 border border-white/10 text-slate-500 hover:text-white grid place-items-center active:scale-90 transition text-xs" aria-label="Play earlier">↑</button>
+          <button data-fxmove="${f.id}:down" class="h-7 w-7 rounded-lg bg-white/5 border border-white/10 text-slate-500 hover:text-white grid place-items-center active:scale-90 transition text-xs" aria-label="Play later">↓</button>
+          <button data-editfx="${f.id}" class="h-7 w-7 rounded-lg bg-white/5 border border-white/10 text-slate-500 hover:text-white grid place-items-center active:scale-90 transition" aria-label="Edit fixture">${ICON.edit}</button>
+          <button data-delfx="${f.id}" class="h-7 w-7 rounded-lg bg-white/5 border border-white/10 text-slate-500 hover:text-rose-300 grid place-items-center active:scale-90 transition text-xs" aria-label="Remove fixture">✕</button>
+        </div>
+      </div>
     </div>
   </div>`;
 }

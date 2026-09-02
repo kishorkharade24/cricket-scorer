@@ -479,5 +479,40 @@ t('the bundle carries everything a viewer needs to render names', () => {
   assert.ok(JSON.stringify(bun).length < 20000, 'a bundle should stay a few KB');
 });
 
+console.log('\nO. Playoff shapes');
+const FX = await import('../src/js/fixtures.js');
+t('the IPL bracket wires qualifiers the way the real one does', () => {
+  const [q1, el, q2, fin] = FX.iplPlayoffs(['t1', 't2', 't3', 't4']);
+  assert.deepEqual([q1.a.id, q1.b.id], ['t1', 't2']);
+  assert.deepEqual([el.a.id, el.b.id], ['t3', 't4']);
+  assert.equal(q2.a.type, 'loser');   assert.equal(q2.a.fixtureId, q1.id);
+  assert.equal(q2.b.type, 'winner');  assert.equal(q2.b.fixtureId, el.id);
+  assert.equal(fin.a.fixtureId, q1.id);
+  assert.equal(fin.b.fixtureId, q2.id);
+});
+t('a loser slot resolves to the side that did not go through', () => {
+  const f = { id: 'fx1', matchId: 'm1' };
+  const m = { id: 'm1', status: 'completed', teams: ['A', 'B'], result: { winnerId: 'A' } };
+  assert.equal(FX.resolveSlot({ type: 'loser', fixtureId: 'fx1' }, [f], () => m), 'B');
+  assert.equal(FX.resolveSlot({ type: 'winner', fixtureId: 'fx1' }, [f], () => m), 'A');
+});
+t('after a tie, the loser slot follows the Super Over result', () => {
+  const f = { id: 'fx1', matchId: 'm1' };
+  const m = { id: 'm1', status: 'completed', teams: ['A', 'B'],
+              result: { tie: true, winnerId: null }, tieBreak: { winnerId: 'B' } };
+  assert.equal(FX.resolveSlot({ type: 'loser', fixtureId: 'fx1' }, [f], () => m), 'A');
+});
+t('an undecided feeder leaves both slots empty', () => {
+  const f = { id: 'fx1', matchId: 'm1' };
+  const m = { id: 'm1', status: 'live', teams: ['A', 'B'], result: null };
+  assert.equal(FX.resolveSlot({ type: 'loser', fixtureId: 'fx1' }, [f], () => m), null);
+});
+t('the 3rd-place fixture feeds on both semi-final losers', () => {
+  const tp = FX.thirdPlaceFixture({ id: 'sf1' }, { id: 'sf2' });
+  assert.equal(tp.stage, '3rd Place');
+  assert.deepEqual([tp.a.type, tp.b.type], ['loser', 'loser']);
+  assert.deepEqual([tp.a.fixtureId, tp.b.fixtureId], ['sf1', 'sf2']);
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

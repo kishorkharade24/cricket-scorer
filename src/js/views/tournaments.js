@@ -38,7 +38,7 @@ function card(t) {
   const pct = total ? Math.round((played / total) * 100) : 0;
   const table = pointsTable(t, store.matches());
   const leader = table[0];
-  const FMT = { league: 'League', knockout: 'Knockout', groups: 'Groups + knockout' }[t.format] || t.format;
+  const FMT = { league: 'League', knockout: 'Knockout', groups: 'Groups + knockout', custom: 'Custom schedule' }[t.format] || t.format;
 
   return `<a href="#/tournament/${t.id}" class="card-h p-4 block animate-slide-up">
     <div class="flex items-start gap-3">
@@ -77,10 +77,11 @@ async function createFlow(ctx) {
     <input id="tuName" class="field" placeholder="e.g. Sunday Premier League" maxlength="44" autocomplete="off">
 
     <label class="label mt-4">Format</label>
-    <div class="grid grid-cols-3 gap-2" id="tuFmt">
+    <div class="grid grid-cols-2 gap-2" id="tuFmt">
       ${[['league', 'League', 'Everyone plays everyone'],
          ['knockout', 'Knockout', 'Single elimination'],
-         ['groups', 'Groups', 'Pools, then a bracket']].map(([v2, l, d], i) =>
+         ['groups', 'Groups', 'Pools, then a bracket'],
+         ['custom', 'Custom', 'Empty schedule — you build every fixture']].map(([v2, l, d], i) =>
         `<button type="button" data-fmt="${v2}" class="rounded-xl border px-2 py-2.5 text-center transition ${i === 0
           ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-white/5 border-white/10 text-slate-400'}">
           <span class="block text-xs font-bold">${l}</span>
@@ -132,7 +133,9 @@ async function createFlow(ctx) {
   };
   t.fixtures = buildFixtures(t);
   store.addTournament(t);
-  toast(`${t.fixtures.length} fixtures scheduled`, 'ok');
+  toast(t.format === 'custom'
+    ? 'Empty schedule — add fixtures as you like'
+    : `${t.fixtures.length} fixtures scheduled`, 'ok');
   ctx.go('/tournament/' + t.id);
 }
 

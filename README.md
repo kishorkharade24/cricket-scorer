@@ -250,11 +250,19 @@ extras breakdown, bowling figures with maidens and economy, fall of wickets,
 partnership bars and an over-by-over ball map.
 
 ### Tournaments
-- **League** (single or double round-robin), **knockout** brackets, or **groups**.
+- **League** (single or double round-robin), **knockout** brackets, **groups**,
+  or **custom** — an empty schedule you build fixture by fixture, any pairing,
+  any stage label, any order.
 - Fixtures generated for you — round-robin uses the circle method, knockouts seed
   1 v N with byes, and `n` teams always produce `n − 1` knockout matches.
 - **Points table** with wins, losses, ties, form guide and **net run rate**.
-- Add semi-finals and a final from the top of the table once the league is done.
+- Add playoffs once the league is done — plain **semi-finals + final**, or
+  **IPL-style Qualifiers**: Qualifier 1 (1st v 2nd), the Eliminator (3rd v 4th),
+  then the Qualifier 1 loser gets a second life against the Eliminator winner.
+- A **3rd-place match** can be added from the two semi-final losers.
+- The auto-draw is a starting point, not a verdict: any unplayed fixture can be
+  edited (both teams and its stage), reordered, or removed, and extra fixtures
+  added by hand.
 - Orange cap / purple cap and five more leaderboards.
 
 ### Appearance

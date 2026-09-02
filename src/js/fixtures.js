@@ -88,6 +88,8 @@ export function buildFixtures(tournament) {
   const { format, teamIds, doubleRound } = tournament;
   const out = [];
 
+  if (format === 'custom') return out;   // the whole point: nothing is decided for you
+
   if (format === 'knockout') {
     knockout(teamIds).forEach(round => round.forEach(f => out.push({ ...f, matchId: null })));
     return out;
@@ -118,8 +120,9 @@ export function buildFixtures(tournament) {
 }
 
 /**
- * Resolve a fixture slot to a concrete team id, following knockout winners.
- * Returns null when the feeding match has not been played yet.
+ * Resolve a fixture slot to a concrete team id, following knockout winners —
+ * and losers, which is what a 3rd-place match and an IPL Qualifier 2 feed on.
+ * Returns null when the feeding match has not been decided yet.
  */
 export function resolveSlot(slot, fixtures, matchById) {
   if (!slot) return null;
@@ -129,7 +132,34 @@ export function resolveSlot(slot, fixtures, matchById) {
   const m = matchById(f.matchId);
   if (!m || m.status !== 'completed' || !m.result) return null;
   // A tie still sends someone through if a Super Over was recorded.
-  return m.result.winnerId || (m.result.tie ? m.tieBreak?.winnerId : null) || null;
+  const through = m.result.winnerId || (m.result.tie ? m.tieBreak?.winnerId : null) || null;
+  if (!through) return null;
+  if (slot.type === 'loser') return m.teams.find(t => t !== through) || null;
+  return through;
+}
+
+const T = id => ({ type: 'team', id });
+const W = f => ({ type: 'winner', fixtureId: f.id });
+const L = f => ({ type: 'loser', fixtureId: f.id });
+
+/**
+ * The IPL shape, for the top four of a league:
+ *   Qualifier 1: 1st v 2nd — the winner goes straight to the Final
+ *   Eliminator:  3rd v 4th — the loser goes home
+ *   Qualifier 2: loser of Q1 v winner of the Eliminator — second life for the top two
+ *   Final:       winner of Q1 v winner of Q2
+ */
+export function iplPlayoffs([s1, s2, s3, s4]) {
+  const q1 = { id: uid('fx'), stage: 'Qualifier 1', round: 1, no: 1, a: T(s1), b: T(s2), matchId: null, playoff: true };
+  const el = { id: uid('fx'), stage: 'Eliminator',  round: 1, no: 2, a: T(s3), b: T(s4), matchId: null, playoff: true };
+  const q2 = { id: uid('fx'), stage: 'Qualifier 2', round: 2, no: 1, a: L(q1), b: W(el), matchId: null, playoff: true };
+  const fin = { id: uid('fx'), stage: 'Final',      round: 3, no: 1, a: W(q1), b: W(q2), matchId: null, playoff: true };
+  return [q1, el, q2, fin];
+}
+
+/** The bronze medal: losers of the two semi-finals. */
+export function thirdPlaceFixture(sf1, sf2, round = 99) {
+  return { id: uid('fx'), stage: '3rd Place', round, no: 1, a: L(sf1), b: L(sf2), matchId: null, playoff: true };
 }
 
 /** Add a knockout stage on top of an existing league table. */
