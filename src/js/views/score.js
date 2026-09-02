@@ -71,6 +71,10 @@ export default {
     // banner and the antenna badge appear even with every sheet closed.
     if (live.hosting() && live.host.matchId === m.id) {
       live.host.onChange = () => { if (location.hash.includes(m.id)) ctx.render(); };
+      live.host.onAutoJoin = () => {
+        toast(`A viewer joined — ${live.viewerCount()} watching`, 'ok', 2500);
+        if (location.hash.includes(m.id)) ctx.render();
+      };
     }
     root.querySelectorAll('[data-liveacc]').forEach(b => b.addEventListener('click', async () => {
       const req = live.host.requests.find(r => r.id === b.dataset.liveacc);
@@ -886,6 +890,12 @@ async function joinStation(m, ctx, forceOffline = false) {
     <div class="mt-3 rounded-2xl bg-pure p-2.5 grid place-items-center">
       <canvas id="stQr" class="w-full max-w-[280px] aspect-square [image-rendering:pixelated]"></canvas>
     </div>
+    <button id="stAuto" class="mt-3 w-full flex items-center gap-3 rounded-xl bg-white/[.04] border border-white/10 px-3 py-2.5 text-left transition active:scale-[.99]">
+      <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-white">Auto-accept joins</span>
+      <span class="block text-[11px] text-slate-500">Anyone who scans starts watching straight away — no Accept needed</span></span>
+      <span id="stAutoKnob" class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors bg-white/15">
+        <span class="block h-5 w-5 rounded-full bg-pure shadow transition-transform"></span></span>
+    </button>
     <div id="stReqs" class="grid gap-2 mt-3"></div>
     <p id="stStatus" class="mt-2 text-center text-[11px] font-semibold text-slate-400"></p>
     <p id="stNote" class="mt-1 text-center text-[10px] text-slate-600">One QR for any number of viewers · the score itself never leaves the ground</p>
@@ -927,11 +937,34 @@ async function joinStation(m, ctx, forceOffline = false) {
     if (location.hash.includes(m.id)) ctx.render();
   };
 
+  // Auto-accept: remembered on the tournament (its standing QR outlives any
+  // one match) or on the match itself for a one-off game.
+  const owner = tour || m;
+  const paintAuto = () => {
+    const knob = document.querySelector('#stAutoKnob');
+    if (!knob) return;
+    const on = !!owner.liveAutoAccept;
+    knob.className = `shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${on ? 'bg-emerald-500' : 'bg-white/15'}`;
+    knob.firstElementChild.className = `block h-5 w-5 rounded-full bg-pure shadow transition-transform ${on ? 'translate-x-4' : ''}`;
+  };
+  document.querySelector('#stAuto')?.addEventListener('click', async () => {
+    owner.liveAutoAccept = !owner.liveAutoAccept;
+    live.host.autoAccept = !!owner.liveAutoAccept;
+    store.save(true);
+    paintAuto();
+    if (owner.liveAutoAccept && live.host.requests.length) {
+      for (const r of [...live.host.requests]) { try { await r.accept(); } catch { /* gone */ } }
+      status(`${count()}`); renderReqs();
+    }
+  });
+
   let code = '';
   try {
     code = await live.hostRoom(m.id, { room: tour ? live.ensureRoom(tour) : null });
     const c = document.querySelector('#stQr');
     if (c) { await renderQR(live.joinUrl(code), { canvas: c }); c.dataset.code = code; }
+    live.host.autoAccept = !!owner.liveAutoAccept;
+    paintAuto();
     status(`${count()} · waiting for someone to scan…`);
     renderReqs();                      // anyone who scanned while this was closed
     if (tour) {

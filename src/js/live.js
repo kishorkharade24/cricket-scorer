@@ -229,6 +229,8 @@ export const host = {
   peers: [],            // { pc, dc, alive }
   pending: null,        // the peer we have shown a code for, awaiting the reply
   requests: [],         // viewers waiting for an Accept — wherever the scorer is
+  autoAccept: false,    // when on, requests connect without asking
+  onAutoJoin: null,     // UI callback: fn() after an automatic accept
   unsub: null,
   onChange: null,       // UI callback: fn() when peers or requests move
   ping: null
@@ -275,7 +277,8 @@ export function stopHosting() {
   closeRoom();
   clearInterval(host.ping);
   host.unsub?.();
-  Object.assign(host, { matchId: null, peers: [], pending: null, requests: [], unsub: null, ping: null });
+  Object.assign(host, { matchId: null, peers: [], pending: null, requests: [],
+    autoAccept: false, onAutoJoin: null, unsub: null, ping: null });
 }
 
 export function closeRoom() {
@@ -341,6 +344,11 @@ export async function hostRoom(matchId, { onRequest = null, room = null } = {}) 
       },
       reject: () => { drop(); /* silence is the rejection — the viewer times out */ }
     };
+    // With auto-accept on, whoever scans is straight in — no queue, no tap.
+    if (host.autoAccept) {
+      try { await req.accept(); host.onAutoJoin?.(); } catch (err) { console.error('[live]', err); }
+      return;
+    }
     // The queue lives here, not in any sheet: a scan that arrives mid-over must
     // still reach the scorer, whatever screen they are on.
     host.requests.push(req);

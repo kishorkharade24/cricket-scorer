@@ -211,9 +211,11 @@ at the foot of its scorecard, out of the way.
 One phone scores; other phones watch it live — at the ground or from anywhere.
 Joining is one scan **with the phone's ordinary camera, no app needed**: the QR
 is a link, so scanning opens the scoreboard in the browser and asks to join by
-itself; the scorer taps **Accept** and the score appears. The copied code is
-that same link, so pasting it into a chat works identically. One QR serves any
-number of viewers.
+itself; the scorer taps **Accept** and the score appears. Flip **auto-accept**
+on (remembered per tournament, or per match for a one-off) and even that tap
+goes away — whoever scans is watching, full stop. The copied code is that same
+link, so pasting it into a chat works identically. One QR serves any number of
+viewers.
 
 **A tournament gets its QR before a ball is bowled.** On the tournament screen,
 the 📡 button shows a standing code you can print on a poster, save as an
