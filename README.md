@@ -221,8 +221,13 @@ it. With no internet at all, the station's **Offline mode** falls back to a
 two-QR exchange (the viewer shows a reply code; the scorer's camera or a paste
 box takes it) that needs nothing but the two devices.
 
-It works on shared WiFi or the scorer's hotspot. Venue WiFi with client
-isolation blocks the phone-to-phone leg — the hotspot gets around it. A
+It works on shared WiFi or the scorer's hotspot, and **usually across
+different networks too** (one phone on WiFi, one on mobile data): a STUN
+server tells each phone its public address, and the score still flows
+directly between them. Some carrier networks block direct connections —
+there is no data relay to fall back on, on purpose — so the same WiFi or
+the scorer's hotspot remains the setup that always works. Venue WiFi with
+client isolation blocks the phone-to-phone leg — the hotspot gets around it. A
 watching phone that locks its screen drops off and rejoins with a fresh scan;
 the app holds a wake lock on both sides to keep that rare, and a viewer that
 cannot connect is told what each side offered so the culprit is visible.

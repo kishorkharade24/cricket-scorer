@@ -121,7 +121,7 @@ function landing() {
       <p class="mt-2 text-sm text-slate-400 leading-relaxed">The codes worked, but no direct connection formed. In order of likelihood:</p>
       <ul class="mt-3 space-y-2 text-[13px] text-slate-400 leading-snug list-disc pl-5">
         <li><b class="text-slate-200">Most often: the scorer never captured your reply.</b> Try again and keep the reply code in front of their camera until their screen says Connected — or send them the copied code to paste.</li>
-        <li>The two devices are on <b class="text-slate-200">different networks</b> — put both on the same WiFi, or join the scorer’s hotspot.</li>
+        <li>Different networks (WiFi v mobile data) <b class="text-slate-200">often work but are not guaranteed</b> — some carriers block direct connections. The same WiFi or the scorer’s hotspot always works.</li>
         <li>Venue WiFi with <b class="text-slate-200">client isolation</b> blocks phone-to-phone traffic — the scorer’s hotspot gets around it.</li>
         <li>A computer’s <b class="text-slate-200">firewall</b> is blocking local connections.</li>
       </ul>

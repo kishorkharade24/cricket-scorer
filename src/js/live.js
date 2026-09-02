@@ -59,7 +59,15 @@ export async function decodeBlob(str) {
  * Shared plumbing
  * ------------------------------------------------------------------ */
 
-const RTC_CFG = { iceServers: [] };   // local network only, on purpose
+/* STUN is address discovery, nothing more: a server tells each phone what its
+ * public address is, and the score still flows directly between the phones.
+ * It is what lets two devices on different networks (WiFi v SIM, two SIMs)
+ * find each other. Strict carrier NATs can still defeat it — that would need
+ * a TURN relay, which pipes the actual data through a server, and this app
+ * does not do that. On the same WiFi or a hotspot none of this is needed. */
+const RTC_CFG = {
+  iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }]
+};
 
 /**
  * Browsers hide the phone's real address behind a random "….local" name until
@@ -92,17 +100,19 @@ export function packSdp(sdp) {
     w: grab(/a=ice-pwd:(\S+)/),
     f: fp,                                                    // hex, no colons
     a: /a=setup:actpass/.test(sdp) ? 1 : 0,                   // 1 = offer side
-    c: [...String(sdp).matchAll(/a=candidate:\S+ 1 (?:udp|UDP) \d+ (\S+) (\d+) typ host/g)]
-        .map(m => [m[1], +m[2]])
+    c: [...String(sdp).matchAll(/a=candidate:\S+ 1 (?:udp|UDP) \d+ (\S+) (\d+) typ (host|srflx)/g)]
+        .map(m => (m[3] === 'srflx' ? [m[1], +m[2], 1] : [m[1], +m[2]]))
         .filter((v, i, arr) => arr.findIndex(x => x[0] === v[0] && x[1] === v[1]) === i)
-        .slice(0, 5)
+        .sort((a, b) => (a[2] ? 1 : 0) - (b[2] ? 1 : 0))     // local addresses first
+        .slice(0, 6)
   };
 }
 
 export function buildSdp(j) {
   const fp = j.f.match(/.{2}/g).join(':').toUpperCase();
-  const cands = j.c.map(([ip, port], i) =>
-    `a=candidate:${i + 1} 1 udp ${2122260223 - i} ${ip} ${port} typ host`);
+  const cands = j.c.map(([ip, port, srflx], i) => srflx
+    ? `a=candidate:${i + 1} 1 udp ${1685987071 - i} ${ip} ${port} typ srflx raddr 0.0.0.0 rport 9`
+    : `a=candidate:${i + 1} 1 udp ${2122260223 - i} ${ip} ${port} typ host`);
   return [
     'v=0', 'o=- 1000000000000000001 2 IN IP4 127.0.0.1', 's=-', 't=0 0',
     'a=group:BUNDLE 0', 'a=msid-semantic: WMS',
@@ -119,11 +129,19 @@ export function buildSdp(j) {
 function gathered(pc) {
   return new Promise(res => {
     if (pc.iceGatheringState === 'complete') return res();
-    const done = () => { pc.removeEventListener('icegatheringstatechange', done); res(); };
+    let settled = false;
+    const done = () => { if (!settled) { settled = true; res(); } };
     pc.addEventListener('icegatheringstatechange', () => {
       if (pc.iceGatheringState === 'complete') done();
     });
-    setTimeout(res, 2500);            // local candidates arrive almost at once
+    // Local candidates land at once; the STUN answer, when the server is
+    // reachable, follows within a few hundred ms. When it is not reachable,
+    // "complete" can take seconds — so once the first candidate is in, give
+    // the rest a short grace period rather than waiting out the full timeout.
+    pc.addEventListener('icecandidate', e => {
+      if (e.candidate) setTimeout(done, 1200);
+    });
+    setTimeout(done, 4000);
   });
 }
 
@@ -426,9 +444,8 @@ export async function viewerJoin(offerCode) {
 /** What addresses each side put on the table — the first thing to look at
  *  when the codes worked but no connection formed. */
 export function candidateSummary() {
-  const parse = sdp => [...String(sdp || '').matchAll(/a=candidate:\S+ 1 udp \d+ (\S+) \d+ typ host/gi)]
-    .map(m => m[1])
-    .map(ip => ip.endsWith('.local') ? 'hidden (.local)' : ip);
+  const parse = sdp => [...String(sdp || '').matchAll(/a=candidate:\S+ 1 udp \d+ (\S+) \d+ typ (host|srflx)/gi)]
+    .map(m => m[2] === 'srflx' ? `${m[1]} (public)` : (m[1].endsWith('.local') ? 'hidden (.local)' : m[1]));
   return {
     mine: parse(viewer.pc?.localDescription?.sdp),
     theirs: parse(viewer.pc?.remoteDescription?.sdp)
