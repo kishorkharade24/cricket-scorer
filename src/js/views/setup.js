@@ -35,7 +35,8 @@ function fresh(ctx) {
     xi: {},
     rules: {
       widePenalty: 1, noBallPenalty: 1, freeHitOnNoBall: true, lastManStands: false,
-      noLbw: false, retireAt: 0, extraBats: 0, everyoneBowls: false, zones: []
+      noLbw: false, retireAt: 0, extraBats: 0, everyoneBowls: false, zones: [],
+      ...(t?.rules || {})          // a tournament's defaults carry into its fixtures
     }
   };
 }

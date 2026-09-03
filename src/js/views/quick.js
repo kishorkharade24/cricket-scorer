@@ -24,6 +24,7 @@ function fresh() {
     batsFirst: 'A',
     shuffle: 0,
     noLbw: true,            // turf default — there is no umpire
+    lastMan: false,
     retireAt: 0,
     zones: [],
     split: null                    // the result of the last balance
@@ -59,12 +60,17 @@ export default {
 
       <div class="card p-4 mt-4">
         <p class="label">Turf rules</p>
-        <button data-act="nolbw" class="w-full flex items-center gap-3 rounded-xl bg-white/[.04] border border-white/10 px-3 py-2.5 text-left transition active:scale-[.99]">
-          <span class="flex-1"><span class="block text-sm font-semibold text-white">No LBW</span>
-          <span class="block text-[11px] text-slate-500">There is no umpire</span></span>
-          <span class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${d.noLbw ? 'bg-emerald-500' : 'bg-white/15'}">
-            <span class="block h-5 w-5 rounded-full bg-pure shadow transition-transform ${d.noLbw ? 'translate-x-4' : ''}"></span></span>
-        </button>
+        <div class="space-y-2">
+          ${[['nolbw', 'No LBW', 'There is no umpire', d.noLbw],
+             ['lastman', 'Last one stands', 'The final batter carries on alone instead of the innings ending', d.lastMan]]
+            .map(([act, title, sub, on]) => `
+          <button data-act="${act}" class="w-full flex items-center gap-3 rounded-xl bg-white/[.04] border border-white/10 px-3 py-2.5 text-left transition active:scale-[.99]">
+            <span class="flex-1"><span class="block text-sm font-semibold text-white">${title}</span>
+            <span class="block text-[11px] text-slate-500">${sub}</span></span>
+            <span class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${on ? 'bg-emerald-500' : 'bg-white/15'}">
+              <span class="block h-5 w-5 rounded-full bg-pure shadow transition-transform ${on ? 'translate-x-4' : ''}"></span></span>
+          </button>`).join('')}
+        </div>
         <p class="label mt-4">Fixed-run zones</p>
         <p class="text-[11px] text-slate-500 leading-snug mb-2">A marked area worth set runs, with no change of strike.</p>
         <div class="flex flex-wrap gap-2">
@@ -126,6 +132,7 @@ export default {
     root.querySelector('[data-act="split"]')?.addEventListener('click', () => doSplit(ctx));
     root.querySelector('[data-act="reshuffle"]')?.addEventListener('click', () => { d.shuffle++; doSplit(ctx, true); });
     root.querySelector('[data-act="nolbw"]')?.addEventListener('click', () => { d.noLbw = !d.noLbw; rr(); });
+    root.querySelector('[data-act="lastman"]')?.addEventListener('click', () => { d.lastMan = !d.lastMan; rr(); });
     root.querySelectorAll('[data-zn]').forEach(b => b.addEventListener('click', () => {
       const n = +b.dataset.zn;
       d.zones = Array.from({ length: n }, (_, i) => d.zones[i] || { label: `Zone ${i + 1}`, runs: i + 1 });
@@ -284,8 +291,8 @@ function start(ctx) {
     toss: { winnerId: d.batsFirst === 'A' ? teamA.id : teamB.id, decision: 'bat' },
     stage: 'Turf',
     rules: {
-      noLbw: d.noLbw, retireAt: d.retireAt, zones: d.zones,
-      extraBats: Math.abs(xiA.length - xiB.length) >= 2 ? 1 : 0
+      noLbw: d.noLbw, lastManStands: d.lastMan, retireAt: d.retireAt, zones: d.zones,
+      extraBats: d.lastMan ? 0 : (Math.abs(xiA.length - xiB.length) >= 2 ? 1 : 0)
     }
   });
   store.addMatch(m);

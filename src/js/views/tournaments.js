@@ -109,6 +109,22 @@ async function createFlow(ctx) {
       <span class="text-xs text-slate-300">Home and away <span class="text-slate-600">(each pair plays twice)</span></span>
     </label>
 
+    <label class="label mt-4">Match rules for every fixture <span class="normal-case text-slate-600">(adjustable per match)</span></label>
+    <label class="flex items-center gap-2.5 cursor-pointer">
+      <input id="tuNoLbw" type="checkbox" class="h-4 w-4 rounded accent-emerald-500">
+      <span class="text-xs text-slate-300">No LBW <span class="text-slate-600">(no umpire)</span></span>
+    </label>
+    <label class="flex items-center gap-2.5 mt-2 cursor-pointer">
+      <input id="tuLastMan" type="checkbox" class="h-4 w-4 rounded accent-emerald-500">
+      <span class="text-xs text-slate-300">Last one stands <span class="text-slate-600">(the final batter carries on alone)</span></span>
+    </label>
+    <div class="mt-3 flex items-center gap-2">
+      <span class="text-xs text-slate-300">Retire on</span>
+      <select id="tuRetire" class="field !w-24 !py-1.5 text-xs">
+        ${[0, 25, 30, 50].map(n => `<option value="${n}">${n === 0 ? 'Off' : n}</option>`).join('')}
+      </select>
+    </div>
+
     <div class="mt-6 grid grid-cols-2 gap-3">
       <button class="btn-ghost" data-close="__dismiss">Cancel</button>
       <button class="btn-primary" id="tuSave">Create &amp; build fixtures</button>
@@ -126,6 +142,7 @@ async function createFlow(ctx) {
     overs: cfg.overs,
     playersPerSide: cfg.playersPerSide,
     doubleRound: cfg.doubleRound,
+    rules: cfg.rules || {},
     points: { win: 2, tie: 1, noResult: 1, loss: 0 },
     groups: cfg.format === 'groups' ? autoGroups(cfg.teamIds) : [],
     fixtures: [],
@@ -178,7 +195,12 @@ document.addEventListener('click', e => {
       teamIds: picked,
       overs: Math.max(1, Math.min(90, +document.querySelector('#tuOvers').value || 20)),
       playersPerSide: Math.max(2, Math.min(15, +document.querySelector('#tuPps').value || 11)),
-      doubleRound: !!document.querySelector('#tuDouble')?.checked
+      doubleRound: !!document.querySelector('#tuDouble')?.checked,
+      rules: {
+        noLbw: !!document.querySelector('#tuNoLbw')?.checked,
+        lastManStands: !!document.querySelector('#tuLastMan')?.checked,
+        retireAt: +document.querySelector('#tuRetire')?.value || 0
+      }
     };
     closeSheet('saved');
   }
