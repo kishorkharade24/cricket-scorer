@@ -2,7 +2,7 @@
 
 import { esc, fixed, confirmDlg, toast, copyText, sheet } from '../util.js';
 import * as store from '../store.js';
-import { badge, empty, teamName, nameOf, tabs, ICON, iconBtn } from '../ui.js';
+import { badge, empty, teamName, teamShort, nameOf, tabs, ICON, iconBtn } from '../ui.js';
 import { resolveSlot, playoffFixtures, iplPlayoffs, thirdPlaceFixture } from '../fixtures.js';
 import { pointsTable, leaderboards, statesOf } from '../stats.js';
 import * as live from '../live.js';
@@ -254,21 +254,47 @@ function fixturesView(t) {
       + Add a fixture of your own</button>`;
 }
 
-/** Change who plays whom, for a fixture nobody has scored yet. */
+/** Change who plays whom, for a fixture nobody has scored yet. Each side can
+ *  be a fixed team, or the winner/loser of an earlier fixture — enough to lay
+ *  out any bracket (crossovers included) before a ball is bowled. */
 async function editFixture(t, fixtureId, ctx) {
   const fx = fixtureId ? t.fixtures.find(f => f.id === fixtureId) : null;
-  const cur = k => (fx?.[k]?.type === 'team' ? fx[k].id : '');
-  const opts = sel => t.teamIds.map(id =>
-    `<option value="${id}" ${id === sel ? 'selected' : ''}>${esc(teamName(id))}</option>`).join('');
+  const myIndex = fx ? t.fixtures.indexOf(fx) : t.fixtures.length;
+  // Only earlier fixtures can feed this one, which also rules out cycles.
+  const feeders = t.fixtures.slice(0, myIndex).filter(f => f.id !== fixtureId);
+
+  const feederLabel = f => {
+    const names = [f.a, f.b].map(sl => sl?.type === 'team' ? teamName(sl.id) : '…');
+    return `${f.stage}${f.no ? ' ' + f.no : ''} (${names.join(' v ')})`;
+  };
+
+  const side = key => {
+    const cur = fx?.[key] || { type: 'team' };
+    const mode = cur.type || 'team';
+    return `
+      <label class="label mt-4">Team ${key.toUpperCase()}</label>
+      <div class="grid grid-cols-3 gap-2 mb-2" data-modes="${key}">
+        ${[['team', 'A team'], ['winner', 'Winner of…'], ['loser', 'Loser of…']].map(([v, l]) =>
+          `<button type="button" data-mode="${key}:${v}" ${v !== 'team' && !feeders.length ? 'disabled' : ''}
+            class="rounded-xl border px-2 py-2 text-[11px] font-bold transition ${mode === v
+              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+              : 'bg-white/5 border-white/10 text-slate-400 disabled:opacity-30'}">${l}</button>`).join('')}
+      </div>
+      <select id="fx${key}Team" class="field ${mode === 'team' ? '' : 'hidden'}">
+        ${t.teamIds.map(id => `<option value="${id}" ${cur.type === 'team' && cur.id === id ? 'selected' : ''}>${esc(teamName(id))}</option>`).join('')}
+      </select>
+      <select id="fx${key}Feed" class="field ${mode === 'team' ? 'hidden' : ''}">
+        ${feeders.map(f => `<option value="${f.id}" ${cur.fixtureId === f.id ? 'selected' : ''}>${esc(feederLabel(f))}</option>`).join('')}
+      </select>`;
+  };
 
   const p = sheet(`
     <h3 class="text-lg font-bold text-white">${fx ? 'Edit fixture' : 'Add a fixture'}</h3>
-    <p class="text-xs text-slate-500 mt-1">You decide who goes against whom — the auto-draw is only a starting point.</p>
-    <label class="label mt-4">Team A</label>
-    <select id="fxA" class="field">${opts(cur('a'))}</select>
-    <label class="label mt-3">Team B</label>
-    <select id="fxB" class="field">${opts(cur('b') || t.teamIds.find(id => id !== (cur('a') || t.teamIds[0])))}</select>
-    <label class="label mt-3">Stage <span class="normal-case text-slate-600">(labels the fixture; a Final crowns the champion)</span></label>
+    <p class="text-xs text-slate-500 mt-1">A side can be a team, or whoever wins or loses an earlier fixture —
+      so a full bracket can exist before anything is played.</p>
+    ${side('a')}
+    ${side('b')}
+    <label class="label mt-4">Stage <span class="normal-case text-slate-600">(labels the fixture; a Final crowns the champion)</span></label>
     <select id="fxStage" class="field">
       ${['League', 'Quarter-Final', 'Semi-Final', 'Qualifier 1', 'Eliminator', 'Qualifier 2', '3rd Place', 'Final']
         .map(st => `<option ${st === (fx?.stage || 'League') ? 'selected' : ''}>${st}</option>`).join('')}
@@ -278,27 +304,57 @@ async function editFixture(t, fixtureId, ctx) {
       <button class="btn-primary" data-close="savefx">${fx ? 'Save' : 'Add'}</button>
     </div>`, { grab: false });
 
-  // Read the selects while they exist — the sheet's close wipes its DOM before
-  // any later listener gets a look at it.
-  let a = document.querySelector('#fxA')?.value;
-  let b = document.querySelector('#fxB')?.value;
-  let stage = document.querySelector('#fxStage')?.value || 'League';
-  document.querySelector('#fxA')?.addEventListener('change', e => { a = e.target.value; });
-  document.querySelector('#fxB')?.addEventListener('change', e => { b = e.target.value; });
-  document.querySelector('#fxStage')?.addEventListener('change', e => { stage = e.target.value; });
+  // Everything read live: the sheet's close wipes its DOM before any later
+  // listener gets a look at it.
+  const state = {
+    a: { ...(fx?.a || { type: 'team', id: t.teamIds[0] }) },
+    b: { ...(fx?.b || { type: 'team', id: t.teamIds[1] || t.teamIds[0] }) },
+    stage: fx?.stage || 'League'
+  };
+  const wire = key => {
+    const teamSel = document.querySelector(`#fx${key}Team`);
+    const feedSel = document.querySelector(`#fx${key}Feed`);
+    const read = () => {
+      if (state[key].type === 'team') state[key] = { type: 'team', id: teamSel.value };
+      else state[key] = { type: state[key].type, fixtureId: feedSel.value || feeders[0]?.id };
+    };
+    read();
+    teamSel?.addEventListener('change', read);
+    feedSel?.addEventListener('change', read);
+    document.querySelectorAll(`[data-mode^="${key}:"]`).forEach(btn => btn.addEventListener('click', () => {
+      const mode = btn.dataset.mode.split(':')[1];
+      state[key] = mode === 'team'
+        ? { type: 'team', id: teamSel.value }
+        : { type: mode, fixtureId: feedSel.value || feeders[0]?.id };
+      teamSel.classList.toggle('hidden', mode !== 'team');
+      feedSel.classList.toggle('hidden', mode === 'team');
+      document.querySelectorAll(`[data-mode^="${key}:"]`).forEach(b2 => {
+        const on = b2 === btn;
+        b2.className = `rounded-xl border px-2 py-2 text-[11px] font-bold transition ${on
+          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+          : 'bg-white/5 border-white/10 text-slate-400 disabled:opacity-30'}`;
+      });
+    }));
+  };
+  wire('a'); wire('b');
+  document.querySelector('#fxStage')?.addEventListener('change', e => { state.stage = e.target.value; });
 
   const v = await p;
   if (v !== 'savefx') return;
 
-  if (!a || !b || a === b) return toast('Pick two different teams', 'warn');
+  const same = JSON.stringify(state.a) === JSON.stringify(state.b);
+  if (same) return toast('The two sides cannot be the same', 'warn');
+  if ((state.a.type !== 'team' && !state.a.fixtureId) || (state.b.type !== 'team' && !state.b.fixtureId)) {
+    return toast('Pick which fixture feeds that side', 'warn');
+  }
+
   if (fx) {
-    fx.a = { type: 'team', id: a };
-    fx.b = { type: 'team', id: b };
-    fx.stage = stage;
+    fx.a = state.a; fx.b = state.b; fx.stage = state.stage;
   } else {
     const { uid } = await import('../util.js');
-    t.fixtures.push({ id: uid('fx'), stage, round: Math.max(1, ...t.fixtures.map(x => x.round || 1)),
-      no: t.fixtures.length + 1, a: { type: 'team', id: a }, b: { type: 'team', id: b }, matchId: null });
+    t.fixtures.push({ id: uid('fx'), stage: state.stage,
+      round: Math.max(1, ...t.fixtures.map(x => x.round || 1)),
+      no: t.fixtures.length + 1, a: state.a, b: state.b, matchId: null });
   }
   store.save(true);
   ctx.render();
@@ -312,6 +368,9 @@ function fixtureRow(f, t) {
     if (s.type === 'team') return s.id ? teamName(s.id) : 'BYE';
     const feed = t.fixtures.find(x => x.id === s.fixtureId);
     const which = s.type === 'loser' ? 'Loser' : 'Winner';
+    if (feed && feed.a?.type === 'team' && feed.b?.type === 'team') {
+      return `${which} of ${teamShort(feed.a.id)} v ${teamShort(feed.b.id)}`;
+    }
     return `${which} of ${feed?.stage || 'previous'}${feed?.stage === 'Semi-Final' || feed?.stage === 'League' ? ' ' + (feed?.no || '') : ''}`.trim();
   };
 

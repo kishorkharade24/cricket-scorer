@@ -266,8 +266,10 @@ partnership bars and an over-by-over ball map.
   then the Qualifier 1 loser gets a second life against the Eliminator winner.
 - A **3rd-place match** can be added from the two semi-final losers.
 - The auto-draw is a starting point, not a verdict: any unplayed fixture can be
-  edited (both teams and its stage), reordered, or removed, and extra fixtures
-  added by hand.
+  edited, reordered, or removed, and extra fixtures added by hand. A fixture's
+  side can be a team **or the winner or loser of any earlier fixture**, so a
+  whole dependent bracket — crossovers like "Match 1 winner v Match 2 loser"
+  included — can be laid out before a ball is bowled.
 - Orange cap / purple cap and five more leaderboards.
 
 ### Appearance
