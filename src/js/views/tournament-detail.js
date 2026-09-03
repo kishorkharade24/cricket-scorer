@@ -254,6 +254,18 @@ function fixturesView(t) {
       + Add a fixture of your own</button>`;
 }
 
+/**
+ * How a fixture is called. "Semi-Final 1" only when there is more than one
+ * semi-final, plain "Semi-Final" otherwise — and the number is its position
+ * among fixtures of the SAME stage, never its position in the whole list.
+ * ("Qualifier 1 1" and "Semi-Final 3" for the only semi were exactly the
+ * confusion this replaces.)
+ */
+function stageTag(t, f) {
+  const same = (t.fixtures || []).filter(x => x.stage === f.stage);
+  return same.length > 1 ? `${f.stage} ${same.indexOf(f) + 1}` : f.stage;
+}
+
 /** Change who plays whom, for a fixture nobody has scored yet. Each side can
  *  be a fixed team, or the winner/loser of an earlier fixture — enough to lay
  *  out any bracket (crossovers included) before a ball is bowled. */
@@ -265,7 +277,7 @@ async function editFixture(t, fixtureId, ctx) {
 
   const feederLabel = f => {
     const names = [f.a, f.b].map(sl => sl?.type === 'team' ? teamName(sl.id) : '…');
-    return `${f.stage}${f.no ? ' ' + f.no : ''} (${names.join(' v ')})`;
+    return `${stageTag(t, f)} — ${names.join(' v ')}`;
   };
 
   const side = key => {
@@ -354,7 +366,8 @@ async function editFixture(t, fixtureId, ctx) {
     const { uid } = await import('../util.js');
     t.fixtures.push({ id: uid('fx'), stage: state.stage,
       round: Math.max(1, ...t.fixtures.map(x => x.round || 1)),
-      no: t.fixtures.length + 1, a: state.a, b: state.b, matchId: null });
+      no: t.fixtures.filter(x => x.stage === state.stage).length + 1,
+      a: state.a, b: state.b, matchId: null });
   }
   store.save(true);
   ctx.render();
@@ -371,7 +384,7 @@ function fixtureRow(f, t) {
     if (feed && feed.a?.type === 'team' && feed.b?.type === 'team') {
       return `${which} of ${teamShort(feed.a.id)} v ${teamShort(feed.b.id)}`;
     }
-    return `${which} of ${feed?.stage || 'previous'}${feed?.stage === 'Semi-Final' || feed?.stage === 'League' ? ' ' + (feed?.no || '') : ''}`.trim();
+    return feed ? `${which} of ${stageTag(t, feed)}` : `${which} of an earlier fixture`;
   };
 
   if (m) {
@@ -382,7 +395,7 @@ function fixtureRow(f, t) {
       <div class="flex items-center gap-2 mb-2">
         ${live ? '<span class="pill bg-rose-500/15 text-rose-300"><span class="h-1.5 w-1.5 rounded-full bg-rose-400"></span>LIVE</span>'
                : '<span class="pill bg-emerald-500/12 text-emerald-300">Result</span>'}
-        <span class="text-[10px] text-slate-600">${esc(f.stage)}${f.no ? ' ' + f.no : ''}</span>
+        <span class="text-[10px] text-slate-600">${esc(stageTag(t, f))}</span>
       </div>
       ${[m.teams[0], m.teams[1]].map(tid => {
         const st = states.find(s => s.battingTeamId === tid);
