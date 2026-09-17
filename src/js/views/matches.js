@@ -2,7 +2,7 @@
 
 import { sortBy, confirmDlg, toast } from '../util.js';
 import * as store from '../store.js';
-import { matchCard, empty, tabs, section } from '../ui.js';
+import { matchCard, empty, tabs, section, ICON } from '../ui.js';
 
 let tab = 'all';
 
@@ -31,7 +31,7 @@ function grouped(list) {
         .map(m => `<div class="relative group">
           ${matchCard(m, { showTournament: false })}
           <button data-del="${m.id}" aria-label="Delete match"
-            class="absolute top-2.5 right-2.5 h-7 w-7 rounded-lg bg-ink-950/70 border border-white/10 text-slate-500 hover:text-rose-300 hover:border-rose-500/30 grid place-items-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition text-xs">✕</button>
+            class="absolute top-2.5 right-2.5 h-7 w-7 rounded-lg bg-ground/70 border border-rule text-muted hover:text-wicket hover:border-wicket/30 grid place-items-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity">${ICON.close}</button>
         </div>`).join('')}
     </div>`).join('');
 }
@@ -54,7 +54,7 @@ export default {
         { key: 'done', label: 'Completed',  count: done.length }
       ], tab)}
       <div class="mt-4">
-        ${list.length ? grouped(list) : empty('🏏', 'Nothing here yet',
+        ${list.length ? grouped(list) : empty(ICON.ball, 'Nothing here yet',
             tab === 'live' ? 'No match is currently being scored.' : 'Completed matches will show up here.',
             `<a href="#/match/quick" class="btn-primary">Start a match</a>`)}
       </div>`;

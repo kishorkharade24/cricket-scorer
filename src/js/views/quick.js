@@ -7,7 +7,7 @@
 
 import { esc, toast, initials, fixed } from '../util.js';
 import * as store from '../store.js';
-import { empty } from '../ui.js';
+import { empty, ICON } from '../ui.js';
 import { newMatch, defaultMaxOversPerBowler } from '../engine.js';
 import { balance, parseNames } from '../balance.js';
 
@@ -27,7 +27,8 @@ function fresh() {
     lastMan: false,
     retireAt: 0,
     zones: [],
-    split: null                    // the result of the last balance
+    split: null,                   // the result of the last balance
+    fromLast: null                 // id of the match this setup was copied from
   };
 }
 
@@ -40,10 +41,11 @@ export default {
   render() {
     if (!d) d = fresh();
     return `
+      ${lastSetupPane()}
       <div class="card p-1.5 flex gap-1.5 mb-4">
         ${[['split', 'One list', 'we’ll split it'], ['manual', 'Two lists', 'you pick sides']]
           .map(([k, l, h]) => `<button data-mode="${k}" class="flex-1 rounded-xl px-3 py-2.5 text-center transition ${
-            d.mode === k ? 'bg-emerald-500 text-onaccent' : 'text-slate-400 hover:text-slate-200'}">
+            d.mode === k ? 'bg-action text-onaction' : 'text-muted hover:text-fg'}">
             <span class="block text-xs font-bold">${l}</span>
             <span class="block text-[10px] opacity-70">${h}</span></button>`).join('')}
       </div>
@@ -53,8 +55,8 @@ export default {
       <div class="card p-4 mt-4">
         <p class="label">Overs each</p>
         <div class="flex flex-wrap gap-2">
-          ${PRESETS.map(o => `<button data-overs="${o}" class="btn-chip ${d.overs === o ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${o}</button>`).join('')}
-          <input id="qOvers" type="number" min="1" max="50" value="${d.overs}" class="w-16 rounded-full bg-white/5 border border-white/10 px-3 py-1.5 text-xs text-center num" aria-label="Overs">
+          ${PRESETS.map(o => `<button data-overs="${o}" class="btn-chip ${d.overs === o ? '!bg-action !text-onaction !border-action' : ''}">${o}</button>`).join('')}
+          <input id="qOvers" type="number" min="1" max="50" value="${d.overs}" class="w-16 rounded-full bg-plate border border-rule px-3 py-1.5 text-xs text-center num" aria-label="Overs">
         </div>
       </div>
 
@@ -64,17 +66,17 @@ export default {
           ${[['nolbw', 'No LBW', 'There is no umpire', d.noLbw],
              ['lastman', 'Last one stands', 'The final batter carries on alone instead of the innings ending', d.lastMan]]
             .map(([act, title, sub, on]) => `
-          <button data-act="${act}" class="w-full flex items-center gap-3 rounded-xl bg-white/[.04] border border-white/10 px-3 py-2.5 text-left transition active:scale-[.99]">
-            <span class="flex-1"><span class="block text-sm font-semibold text-white">${title}</span>
-            <span class="block text-[11px] text-slate-500">${sub}</span></span>
-            <span class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${on ? 'bg-emerald-500' : 'bg-white/15'}">
+          <button data-act="${act}" class="w-full flex items-center gap-3 rounded-xl bg-plate border border-rule px-3 py-2.5 text-left transition active:scale-[.99]">
+            <span class="flex-1"><span class="block text-sm font-semibold text-fg">${title}</span>
+            <span class="block text-[11px] text-muted">${sub}</span></span>
+            <span class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${on ? 'bg-action' : 'bg-fill'}">
               <span class="block h-5 w-5 rounded-full bg-pure shadow transition-transform ${on ? 'translate-x-4' : ''}"></span></span>
           </button>`).join('')}
         </div>
         <p class="label mt-4">Fixed-run zones</p>
-        <p class="text-[11px] text-slate-500 leading-snug mb-2">A marked area worth set runs, with no change of strike.</p>
+        <p class="text-[11px] text-muted leading-snug mb-2">A marked area worth set runs, with no change of strike.</p>
         <div class="flex flex-wrap gap-2">
-          ${[0, 1, 2, 3].map(n => `<button data-zn="${n}" class="btn-chip ${(d.zones.length) === n ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${n === 0 ? 'None' : n + (n === 1 ? ' zone' : ' zones')}</button>`).join('')}
+          ${[0, 1, 2, 3].map(n => `<button data-zn="${n}" class="btn-chip ${(d.zones.length) === n ? '!bg-action !text-onaction !border-action' : ''}">${n === 0 ? 'None' : n + (n === 1 ? ' zone' : ' zones')}</button>`).join('')}
         </div>
         ${d.zones.length ? `<div class="grid gap-2 mt-2">
           ${d.zones.map((z, i) => `<div class="flex items-center gap-2">
@@ -84,9 +86,9 @@ export default {
 
         <p class="label mt-4">Retire on</p>
         <div class="flex flex-wrap gap-2">
-          ${[0, 25, 30, 50].map(n => `<button data-retire="${n}" class="btn-chip ${d.retireAt === n ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${n === 0 ? 'Off' : n}</button>`).join('')}
+          ${[0, 25, 30, 50].map(n => `<button data-retire="${n}" class="btn-chip ${d.retireAt === n ? '!bg-action !text-onaction !border-action' : ''}">${n === 0 ? 'Off' : n}</button>`).join('')}
         </div>
-        <p class="mt-2 text-[11px] text-slate-500">${d.retireAt ? `Everyone gets a bat — you will be asked to retire on ${d.retireAt}.` : 'Batters carry on until they are out.'}</p>
+        <p class="mt-2 text-[11px] text-muted">${d.retireAt ? `Everyone gets a bat — you will be asked to retire on ${d.retireAt}.` : 'Batters carry on until they are out.'}</p>
       </div>
 
       <div class="card p-4 mt-4">
@@ -94,13 +96,13 @@ export default {
         <div class="grid grid-cols-3 gap-2">
           ${[['A', d.nameA], ['B', d.nameB]].map(([k, n]) => `<button data-bf="${k}"
             class="rounded-xl border px-2 py-2.5 text-xs font-bold truncate transition active:scale-95 ${
-              d.batsFirst === k ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-white/5 border-white/10 text-slate-400'}">${esc(n)}</button>`).join('')}
-          <button data-bf="flip" class="rounded-xl border bg-white/5 border-white/10 px-2 py-2.5 text-xs font-bold text-slate-400 active:scale-95 transition">🪙 Flip</button>
+              d.batsFirst === k ? 'bg-action/15 border-action text-fg' : 'bg-plate border-rule text-muted'}">${esc(n)}</button>`).join('')}
+          <button data-bf="flip" class="rounded-xl border bg-plate border-rule px-2 py-2.5 text-xs font-bold text-muted active:scale-95 transition">${ICON.coin} Flip</button>
         </div>
       </div>
 
-      <button data-act="start" class="btn-primary w-full mt-5 !py-3.5">Start scoring 🏏</button>
-      <p class="mt-3 text-center text-[11px] text-slate-600 leading-relaxed">
+      <button data-act="start" class="btn-primary w-full mt-5 !py-3.5">Start scoring ${ICON.ball}</button>
+      <p class="mt-3 text-center text-[11px] text-faint leading-relaxed">
         Teams and players are saved, so career stats build up.<br>
         Reuse a team name next week and it carries on.</p>`;
   },
@@ -154,6 +156,14 @@ export default {
       } else d.batsFirst = b.dataset.bf;
       rr();
     }));
+    root.querySelector('[data-act="uselast"]')?.addEventListener('click', () => {
+      const prev = lastQuick();
+      if (!prev) return;
+      d = draftFrom(prev);
+      toast('Last setup loaded, edit anything', 'ok');
+      rr();
+    });
+    root.querySelector('[data-act="fresh"]')?.addEventListener('click', () => { d = fresh(); rr(); });
     root.querySelector('[data-act="start"]')?.addEventListener('click', () => start(ctx));
     root.querySelectorAll('[data-swap]').forEach(b => b.addEventListener('click', () => {
       const id = b.dataset.swap;
@@ -166,6 +176,78 @@ export default {
   }
 };
 
+/* ------------------------------------------------------------------ *
+ * Last week's game
+ *
+ * Turf sides are mostly the same people every week, so retyping twelve names
+ * is the slowest part of a "quick" match. A finished match already stores both
+ * squads, the overs and the rules, so the whole setup can be read back and
+ * then edited like any other draft.
+ * ------------------------------------------------------------------ */
+
+function lastQuick() {
+  const played = store.matches().filter(m => m.stage === 'Turf');
+  if (!played.length) return null;
+  const m = played.reduce((a, b) => (b.createdAt > a.createdAt ? b : a));
+  const ta = store.team(m.teams[0]), tb = store.team(m.teams[1]);
+  if (!ta || !tb) return null;                       // a side has since been deleted
+  const namesOf = id => (m.xi?.[id] || []).map(pid => store.player(pid)?.name).filter(Boolean);
+  const A = namesOf(m.teams[0]), B = namesOf(m.teams[1]);
+  if (A.length < 2 || B.length < 2) return null;     // not enough left to reuse
+  return { m, ta, tb, A, B };
+}
+
+function draftFrom(prev) {
+  const { m, ta, tb, A, B } = prev;
+  const r = m.rules || {};
+  return {
+    mode: 'manual',                                  // both sides are known already
+    pool: '',
+    nameA: ta.name, nameB: tb.name,
+    listA: A.join('\n'), listB: B.join('\n'),
+    overs: m.overs,
+    batsFirst: m.toss?.winnerId === m.teams[0] ? 'A' : 'B',
+    shuffle: 0,
+    noLbw: !!r.noLbw,
+    lastMan: !!r.lastManStands,
+    retireAt: r.retireAt || 0,
+    zones: (r.zones || []).map(z => ({ label: z.label || '', runs: +z.runs || 1 })),
+    split: null,
+    fromLast: m.id
+  };
+}
+
+function ruleSummary(m) {
+  const r = m.rules || {};
+  const bits = [`${m.overs} overs`];
+  if (r.noLbw) bits.push('no LBW');
+  if (r.lastManStands) bits.push('last one stands');
+  if (r.retireAt) bits.push(`retire on ${r.retireAt}`);
+  if (r.zones?.length) bits.push(`${r.zones.length} zone${r.zones.length === 1 ? '' : 's'}`);
+  return bits.join(', ');
+}
+
+function lastSetupPane() {
+  if (d.fromLast) {
+    const m = store.match(d.fromLast);
+    const who = m ? `${store.team(m.teams[0])?.name || 'Team A'} v ${store.team(m.teams[1])?.name || 'Team B'}` : 'the last match';
+    return `<div class="flex items-center gap-2 mb-3">
+      <p class="flex-1 min-w-0 text-[11px] text-muted truncate">Starting from ${esc(who)}. Edit anything below.</p>
+      <button data-act="fresh" class="btn-chip shrink-0">Start fresh</button>
+    </div>`;
+  }
+  const prev = lastQuick();
+  if (!prev) return '';
+  return `<button data-act="uselast" class="card-h w-full p-3.5 mb-3 flex items-center gap-3 text-left">
+    <span class="h-9 w-9 shrink-0 rounded-lg bg-fill border border-rule grid place-items-center text-muted">${ICON.refresh}</span>
+    <span class="flex-1 min-w-0">
+      <span class="block text-sm font-semibold text-fg truncate">${esc(prev.ta.name)} v ${esc(prev.tb.name)}</span>
+      <span class="block text-[11px] text-muted truncate">${prev.A.length} and ${prev.B.length} players, ${esc(ruleSummary(prev.m))}</span>
+    </span>
+    <span class="text-[11px] font-semibold text-fg shrink-0">Use again</span>
+  </button>`;
+}
+
 /* ------------------------------------------------------------------ */
 
 function splitPane() {
@@ -174,11 +256,11 @@ function splitPane() {
   return `<div class="card p-4">
     <div class="flex items-end justify-between">
       <p class="label !mb-0">Who turned up?</p>
-      <span id="qCount" class="text-[11px] font-semibold text-emerald-400">${n ? `${n} player${n === 1 ? '' : 's'}` : ''}</span>
+      <span id="qCount" class="text-[11px] font-semibold text-fg">${n ? `${n} player${n === 1 ? '' : 's'}` : ''}</span>
     </div>
     <textarea id="qPool" rows="8" class="field mt-1.5 font-mono text-xs leading-relaxed"
       placeholder="One name per line — paste the WhatsApp list if you like&#10;&#10;Rohit&#10;Virat&#10;Bumrah&#10;Jadeja">${esc(d.pool)}</textarea>
-    <p class="mt-2 text-[11px] text-slate-500 leading-snug">Numbering like “1.” is stripped and repeats are dropped.</p>
+    <p class="mt-2 text-[11px] text-muted leading-snug">Numbering like “1.” is stripped and repeats are dropped.</p>
     <button data-act="split" class="btn-primary w-full mt-3">Split into two sides</button>
   </div>`;
 }
@@ -190,18 +272,18 @@ function splitResult() {
       <input id="${nameKey === 'nameA' ? 'qNameA' : 'qNameB'}" class="field !py-2 text-sm font-bold mb-3"
         value="${esc(d[nameKey])}" maxlength="24" aria-label="${label} name">
       <div class="grid gap-1.5">
-        ${ids.map(id => `<div class="flex items-center gap-2.5 rounded-lg bg-white/[.04] px-2.5 py-2">
-          <span class="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-white/8 text-[10px] font-bold text-slate-300">${esc(initials(store.playerName(id)))}</span>
-          <span class="flex-1 min-w-0 text-xs font-semibold text-white truncate">${esc(store.playerName(id))}</span>
-          <button data-swap="${id}" class="h-6 w-6 rounded-md bg-white/5 text-slate-500 hover:text-emerald-300 grid place-items-center text-[11px] active:scale-90 transition" title="Move to ${esc(other)}">⇄</button>
+        ${ids.map(id => `<div class="flex items-center gap-2.5 rounded-lg bg-plate px-2.5 py-2">
+          <span class="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-plate text-[10px] font-bold text-fg">${esc(initials(store.playerName(id)))}</span>
+          <span class="flex-1 min-w-0 text-xs font-semibold text-fg truncate">${esc(store.playerName(id))}</span>
+          <button data-swap="${id}" class="h-6 w-6 rounded-md bg-plate text-muted hover:text-fg grid place-items-center text-[11px] active:scale-90 transition" title="Move to ${esc(other)}">⇄</button>
         </div>`).join('')}
       </div>
-      <p class="mt-2 text-[10px] text-slate-600">${ids.length} player${ids.length === 1 ? '' : 's'}</p>
+      <p class="mt-2 text-[10px] text-faint">${ids.length} player${ids.length === 1 ? '' : 's'}</p>
     </div>`;
 
   return `
-    <div class="rounded-xl ${gapPct < 12 ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-amber-500/10 border-amber-500/25'} border px-3 py-2.5 mb-3">
-      <p class="text-[11px] ${gapPct < 12 ? 'text-emerald-200' : 'text-amber-200'} leading-snug">
+    <div class="rounded-xl ${gapPct < 12 ? 'bg-action/10 border-action' : 'bg-boundary/10 border-boundary/25'} border px-3 py-2.5 mb-3">
+      <p class="text-[11px] ${gapPct < 12 ? 'text-fg' : 'text-boundary'} leading-snug">
         ${knownCount === 0
           ? 'Nobody has played before, so the sides are split evenly by number. They will get smarter as you score matches.'
           : `Sides are within <b>${fixed(gapPct, 0)}%</b> of each other on past form (${knownCount} of ${d.split.teamA.length + d.split.teamB.length} have history).`}
@@ -212,8 +294,8 @@ function splitResult() {
       ${side('Team B', d.split.teamB, 'nameB', d.nameA)}
     </div>
     <div class="grid grid-cols-2 gap-3 mt-3">
-      <button data-act="reshuffle" class="btn-ghost text-xs">🔀 Shuffle again</button>
-      <button data-mode="split" class="btn-ghost text-xs">← Edit the list</button>
+      <button data-act="reshuffle" class="btn-ghost text-xs">${ICON.shuffle} Shuffle again</button>
+      <button data-mode="split" class="btn-ghost text-xs">Edit the list</button>
     </div>`;
 }
 
@@ -224,7 +306,7 @@ function manualPane() {
       <input id="${nameId}" class="field !py-2 text-sm font-bold" value="${esc(d[nameKey])}" maxlength="24" aria-label="Team name">
       <div class="flex items-end justify-between mt-3">
         <p class="label !mb-0">Players</p>
-        <span class="text-[11px] font-semibold ${n < 2 ? 'text-rose-400' : 'text-emerald-400'}">${n}</span>
+        <span class="text-[11px] font-semibold ${n < 2 ? 'text-wicket' : 'text-fg'}">${n}</span>
       </div>
       <textarea id="${inputId}" rows="6" class="field mt-1.5 font-mono text-xs leading-relaxed"
         placeholder="One name per line">${esc(d[listKey])}</textarea>
@@ -270,8 +352,8 @@ function start(ctx) {
   const nameB = (d.nameB || 'Team B').trim() || 'Team B';
   if (nameA.toLowerCase() === nameB.toLowerCase()) return toast('Give the two sides different names', 'warn');
 
-  const teamA = store.findOrCreateTeam(nameA, 'emerald');
-  const teamB = store.findOrCreateTeam(nameB, 'rose');
+  const teamA = store.findOrCreateTeam(nameA, 'bottle');
+  const teamB = store.findOrCreateTeam(nameB, 'claret');
   const xiA = namesA.map(n => store.linkPlayer(teamA.id, n).id);
   const xiB = namesB.map(n => store.linkPlayer(teamB.id, n).id);
 

@@ -15,12 +15,12 @@ export default {
   render() {
     const list = sortBy(store.tournaments(), '-createdAt');
     if (!list.length) {
-      return empty('🏆', 'No tournaments yet',
+      return empty(ICON.trophy, 'No tournaments yet',
         'Pick your teams and the app builds the fixture list, keeps the points table and works out net run rate for you.',
         `<button data-act="new" class="btn-primary">Create a tournament</button>`);
     }
     return `<div class="grid gap-3">${list.map(card).join('')}</div>
-      <button data-act="new" class="mt-4 w-full rounded-2xl border border-dashed border-white/15 py-4 text-sm font-semibold text-slate-400 hover:text-emerald-300 hover:border-emerald-400/40 transition active:scale-[.98]">
+      <button data-act="new" class="mt-4 w-full rounded-xl border border-dashed border-rule py-4 text-sm font-semibold text-muted hover:text-fg hover:border-action transition active:scale-[.98]">
         + New tournament</button>`;
   },
 
@@ -40,22 +40,22 @@ function card(t) {
   const leader = table[0];
   const FMT = { league: 'League', knockout: 'Knockout', groups: 'Groups + knockout', custom: 'Custom schedule' }[t.format] || t.format;
 
-  return `<a href="#/tournament/${t.id}" class="card-h p-4 block animate-slide-up">
+  return `<a href="#/tournament/${t.id}" class="card-h p-4 block">
     <div class="flex items-start gap-3">
-      <span class="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-amber-400/25 to-amber-600/10 border border-amber-500/25 grid place-items-center text-xl">🏆</span>
+      <span class="h-11 w-11 shrink-0 rounded-lg bg-fill border border-rule grid place-items-center text-lg text-muted">${ICON.trophy}</span>
       <div class="flex-1 min-w-0">
-        <p class="font-bold text-white truncate">${esc(t.name)}</p>
-        <p class="text-[11px] text-slate-500">${FMT} · ${t.teamIds.length} teams · ${t.overs} ov</p>
+        <p class="font-bold text-fg truncate">${esc(t.name)}</p>
+        <p class="text-[11px] text-muted">${FMT}, ${t.teamIds.length} teams, ${t.overs} ov</p>
       </div>
-      <span class="pill ${played === total && total ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/8 text-slate-400'}">
+      <span class="pill ${played === total && total ? 'bg-action/15 text-fg' : 'bg-plate text-muted'}">
         ${played === total && total ? 'Finished' : `${played}/${total}`}</span>
     </div>
-    <div class="mt-3 h-1.5 rounded-full bg-white/8 overflow-hidden">
-      <div class="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-700" style="width:${pct}%"></div>
+    <div class="mt-3 h-1.5 rounded-full bg-plate overflow-hidden">
+      <div class="h-full rounded-full bg-action transition-all duration-700" style="width:${pct}%"></div>
     </div>
-    ${leader && leader.p ? `<p class="mt-2.5 text-[11px] text-slate-400">
-      🥇 <b class="text-white">${esc(teamName(leader.teamId))}</b> lead with ${leader.pts} pts
-      <span class="text-slate-600">· NRR ${leader.nrr >= 0 ? '+' : ''}${leader.nrr.toFixed(3)}</span></p>` : ''}
+    ${leader && leader.p ? `<p class="mt-2.5 text-[11px] text-muted">
+      <span class="text-boundary">${ICON.medal}</span> <b class="text-fg">${esc(teamName(leader.teamId))}</b> lead with ${leader.pts} pts
+      <span class="text-faint">· NRR ${leader.nrr >= 0 ? '+' : ''}${leader.nrr.toFixed(3)}</span></p>` : ''}
   </a>`;
 }
 
@@ -71,7 +71,7 @@ async function createFlow(ctx) {
 
   const s = store.settings();
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white mb-4">New tournament</h3>
+    <h3 class="text-lg font-bold text-fg mb-4">New tournament</h3>
 
     <label class="label">Name</label>
     <input id="tuName" class="field" placeholder="e.g. Sunday Premier League" maxlength="44" autocomplete="off">
@@ -83,18 +83,18 @@ async function createFlow(ctx) {
          ['groups', 'Groups', 'Pools, then a bracket'],
          ['custom', 'Custom', 'Empty schedule — you build every fixture']].map(([v2, l, d], i) =>
         `<button type="button" data-fmt="${v2}" class="rounded-xl border px-2 py-2.5 text-center transition ${i === 0
-          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-white/5 border-white/10 text-slate-400'}">
+          ? 'bg-action/15 border-action text-fg' : 'bg-plate border-rule text-muted'}">
           <span class="block text-xs font-bold">${l}</span>
           <span class="block text-[9px] opacity-70 leading-tight mt-0.5">${d}</span></button>`).join('')}
     </div>
 
-    <label class="label mt-4">Teams <span class="normal-case text-slate-600">(tap to include)</span></label>
+    <label class="label mt-4">Teams <span class="font-normal text-faint">(tap to include)</span></label>
     <div class="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto no-scrollbar" id="tuTeams">
       ${teams.map(t => `<button type="button" data-tt="${t.id}"
-        class="flex items-center gap-2 rounded-lg border bg-white/[.03] border-white/8 px-2 py-2 text-left transition">
-        <span class="h-6 w-6 grid place-items-center rounded-md bg-white/8 text-[9px] font-bold text-slate-300">${esc(t.short)}</span>
-        <span class="flex-1 min-w-0 text-[11px] font-semibold text-slate-400 truncate">${esc(t.name)}</span>
-        <span class="tick text-emerald-400 opacity-0 text-xs">✓</span></button>`).join('')}
+        class="flex items-center gap-2 rounded-lg border bg-plate border-rule px-2 py-2 text-left transition">
+        <span class="h-6 w-6 grid place-items-center rounded-md bg-plate text-[9px] font-bold text-fg">${esc(t.short)}</span>
+        <span class="flex-1 min-w-0 text-[11px] font-semibold text-muted truncate">${esc(t.name)}</span>
+        <span class="tick text-fg opacity-0 text-sm">${ICON.check}</span></button>`).join('')}
     </div>
 
     <div class="grid grid-cols-2 gap-3 mt-4">
@@ -106,20 +106,20 @@ async function createFlow(ctx) {
 
     <label class="flex items-center gap-2.5 mt-4 cursor-pointer">
       <input id="tuDouble" type="checkbox" class="h-4 w-4 rounded accent-emerald-500">
-      <span class="text-xs text-slate-300">Home and away <span class="text-slate-600">(each pair plays twice)</span></span>
+      <span class="text-xs text-fg">Home and away <span class="text-faint">(each pair plays twice)</span></span>
     </label>
 
-    <label class="label mt-4">Match rules for every fixture <span class="normal-case text-slate-600">(adjustable per match)</span></label>
+    <label class="label mt-4">Match rules for every fixture <span class="font-normal text-faint">(adjustable per match)</span></label>
     <label class="flex items-center gap-2.5 cursor-pointer">
       <input id="tuNoLbw" type="checkbox" class="h-4 w-4 rounded accent-emerald-500">
-      <span class="text-xs text-slate-300">No LBW <span class="text-slate-600">(no umpire)</span></span>
+      <span class="text-xs text-fg">No LBW <span class="text-faint">(no umpire)</span></span>
     </label>
     <label class="flex items-center gap-2.5 mt-2 cursor-pointer">
       <input id="tuLastMan" type="checkbox" class="h-4 w-4 rounded accent-emerald-500">
-      <span class="text-xs text-slate-300">Last one stands <span class="text-slate-600">(the final batter carries on alone)</span></span>
+      <span class="text-xs text-fg">Last one stands <span class="text-faint">(the final batter carries on alone)</span></span>
     </label>
     <div class="mt-3 flex items-center gap-2">
-      <span class="text-xs text-slate-300">Retire on</span>
+      <span class="text-xs text-fg">Retire on</span>
       <select id="tuRetire" class="field !w-24 !py-1.5 text-xs">
         ${[0, 25, 30, 50].map(n => `<option value="${n}">${n === 0 ? 'Off' : n}</option>`).join('')}
       </select>
@@ -171,17 +171,17 @@ document.addEventListener('click', e => {
   const f = e.target.closest('#tuFmt [data-fmt]');
   if (f) {
     f.parentElement.querySelectorAll('[data-fmt]').forEach(b =>
-      b.className = b.className.replace('bg-emerald-500/15 border-emerald-500/40 text-emerald-300', 'bg-white/5 border-white/10 text-slate-400'));
-    f.className = f.className.replace('bg-white/5 border-white/10 text-slate-400', 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300');
+      b.className = b.className.replace('bg-action/15 border-action text-fg', 'bg-plate border-rule text-muted'));
+    f.className = f.className.replace('bg-plate border-rule text-muted', 'bg-action/15 border-action text-fg');
     return;
   }
   const tt = e.target.closest('#tuTeams [data-tt]');
   if (tt) {
     const on = tt.classList.toggle('picked');
-    tt.classList.toggle('bg-emerald-500/12', on);
-    tt.classList.toggle('border-emerald-500/35', on);
+    tt.classList.toggle('bg-action/10', on);
+    tt.classList.toggle('border-action', on);
     tt.querySelector('.tick').classList.toggle('opacity-0', !on);
-    tt.querySelector('span:nth-child(2)').classList.toggle('text-white', on);
+    tt.querySelector('span:nth-child(2)').classList.toggle('text-fg', on);
     return;
   }
   if (e.target.closest('#tuSave')) {
@@ -191,7 +191,7 @@ document.addEventListener('click', e => {
     if (picked.length < 2) return toast('Pick at least two teams', 'warn');
     window.__tourResult = {
       name,
-      format: document.querySelector('#tuFmt [data-fmt].text-emerald-300')?.dataset.fmt || 'league',
+      format: document.querySelector('#tuFmt [data-fmt].text-fg')?.dataset.fmt || 'league',
       teamIds: picked,
       overs: Math.max(1, Math.min(90, +document.querySelector('#tuOvers').value || 20)),
       playersPerSide: Math.max(2, Math.min(15, +document.querySelector('#tuPps').value || 11)),

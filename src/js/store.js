@@ -149,7 +149,7 @@ export function addTeam({ name, short, accent }) {
     id: uid('tm'),
     name: name.trim(),
     short: short ? short.trim().slice(0, 4).toUpperCase() : shortCodeFor(name, taken),
-    accent: accent || 'emerald',
+    accent: accent || 'navy',
     players: [],
     createdAt: Date.now()
   };

@@ -16,37 +16,36 @@ export default {
   back: '/teams',
   title: ctx => store.team(ctx.id)?.name || 'Team',
   sub: ctx => `${store.players(ctx.id).length} players in the squad`,
-  actions: ctx => `${iconBtn('edit', ICON.edit, 'Edit team')}${iconBtn('del', ICON.trash, 'Delete team', 'hover:text-rose-300')}`,
+  actions: ctx => `${iconBtn('edit', ICON.edit, 'Edit team')}${iconBtn('del', ICON.trash, 'Delete team', 'hover:text-wicket')}`,
 
   render(ctx) {
     const t = store.team(ctx.id);
-    if (!t) return empty('❓', 'Team not found', 'It may have been deleted.', `<a href="#/teams" class="btn-ghost">Back to teams</a>`);
+    if (!t) return empty(ICON.question, 'Team not found', 'It may have been deleted.', `<a href="#/teams" class="btn-ghost">Back to teams</a>`);
 
     const squad = store.players(t.id);
     const agg = aggregate(store.matches());
     const a = accent(t.accent);
 
     return `
-      <div class="card p-5 mb-5 relative overflow-hidden animate-slide-up">
-        <div class="absolute -right-8 -top-8 h-28 w-28 rounded-full ${a.dot} opacity-15 blur-2xl"></div>
-        <div class="relative flex items-center gap-4">
+      <div class="card ${a.cls} tm-edge p-5 mb-5 border-l-4">
+        <div class="flex items-center gap-4">
           ${badge(t.id, 'lg')}
           <div class="min-w-0">
-            <h2 class="text-xl font-extrabold text-white truncate">${esc(t.name)}</h2>
-            <p class="text-xs text-slate-500">${squad.length} players · played ${store.matches().filter(m => m.teams.includes(t.id)).length} matches</p>
+            <h2 class="display text-2xl font-extrabold text-fg truncate">${esc(t.name)}</h2>
+            <p class="text-xs text-muted">${squad.length} players, played ${store.matches().filter(m => m.teams.includes(t.id)).length} matches</p>
           </div>
         </div>
       </div>
 
-      <div class="flex items-end justify-between mb-3">
-        <h2 class="text-[11px] font-bold uppercase tracking-[.12em] text-slate-500">Squad</h2>
-        <p class="text-[11px] text-slate-600">↑ ↓ sets the batting order</p>
+      <div class="flex items-end justify-between mb-2.5">
+        <h2 class="section-label">Squad</h2>
+        <p class="text-[11px] text-faint">The arrows set the batting order</p>
       </div>
 
       ${squad.length ? `<div class="grid gap-2" id="squad">${squad.map((p, i) => playerRow(p, i, agg.get(p.id))).join('')}</div>`
-        : empty('🧍', 'No players yet', 'Add at least two players so this team can take the field.')}
+        : empty(ICON.people, 'No players yet', 'Add at least two players so this team can take the field.')}
 
-      <button data-act="addp" class="mt-3 w-full rounded-2xl border border-dashed border-white/15 py-3.5 text-sm font-semibold text-slate-400 hover:text-emerald-300 hover:border-emerald-400/40 transition active:scale-[.98]">
+      <button data-act="addp" class="mt-3 w-full rounded-xl border border-dashed border-rule py-3.5 text-sm font-semibold text-muted hover:text-fg hover:border-action transition active:scale-[.98]">
         + Add player</button>
 
       <div class="mt-4 flex gap-2">
@@ -116,21 +115,21 @@ function playerRow(p, i, a) {
   const line = a && (a.runs || a.wkts || a.mat)
     ? [a.runs ? `${a.runs} run${a.runs === 1 ? '' : 's'}` : null,
        a.wkts ? `${a.wkts} wicket${a.wkts === 1 ? '' : 's'}` : null,
-       `${a.mat} match${a.mat === 1 ? '' : 'es'}`].filter(Boolean).join(' · ')
+       `${a.mat} match${a.mat === 1 ? '' : 'es'}`].filter(Boolean).join(', ')
     : (p.bowlStyle || p.role);
   return `<div class="card p-3 flex items-center gap-3 animate-fade-in" style="animation-delay:${i * 18}ms">
-    <span class="w-5 text-center text-[11px] font-bold text-slate-600 num">${i + 1}</span>
-    <span class="h-9 w-9 shrink-0 grid place-items-center rounded-full bg-white/8 border border-white/10 text-[11px] font-bold text-slate-300">${esc(initials(p.name))}</span>
+    <span class="w-5 text-center text-[11px] font-bold text-faint num">${i + 1}</span>
+    <span class="h-9 w-9 shrink-0 grid place-items-center rounded-full bg-plate border border-rule text-[11px] font-bold text-fg">${esc(initials(p.name))}</span>
     <div class="flex-1 min-w-0">
-      <p class="text-sm font-semibold text-white truncate">${esc(p.name)}
-        ${p.role === 'Wicket-keeper' ? '<span class="ml-1 text-[9px] font-bold text-amber-300">WK</span>' : ''}</p>
-      <p class="text-[11px] text-slate-500 truncate">${esc(line)}</p>
+      <p class="text-sm font-semibold text-fg truncate">${esc(p.name)}
+        ${p.role === 'Wicket-keeper' ? '<span class="ml-1 text-[9px] font-bold text-boundary">WK</span>' : ''}</p>
+      <p class="text-[11px] text-muted truncate">${esc(line)}</p>
     </div>
     <div class="flex items-center gap-1">
-      <button data-move="${p.id}:up" class="h-7 w-7 rounded-lg bg-white/5 text-slate-500 hover:text-white grid place-items-center text-xs active:scale-90 transition" aria-label="Move up">↑</button>
-      <button data-move="${p.id}:down" class="h-7 w-7 rounded-lg bg-white/5 text-slate-500 hover:text-white grid place-items-center text-xs active:scale-90 transition" aria-label="Move down">↓</button>
-      <button data-edit="${p.id}" class="h-7 w-7 rounded-lg bg-white/5 text-slate-500 hover:text-white grid place-items-center active:scale-90 transition" aria-label="Edit">${ICON.edit}</button>
-      <button data-delp="${p.id}" class="h-7 w-7 rounded-lg bg-white/5 text-slate-500 hover:text-rose-300 grid place-items-center active:scale-90 transition" aria-label="Remove">✕</button>
+      <button data-move="${p.id}:up" class="h-7 w-7 rounded-lg bg-plate text-muted hover:text-fg grid place-items-center text-xs active:scale-90 transition" aria-label="Move up">↑</button>
+      <button data-move="${p.id}:down" class="h-7 w-7 rounded-lg bg-plate text-muted hover:text-fg grid place-items-center text-xs active:scale-90 transition" aria-label="Move down">↓</button>
+      <button data-edit="${p.id}" class="h-7 w-7 rounded-lg bg-plate text-muted hover:text-fg grid place-items-center active:scale-90 transition" aria-label="Edit">${ICON.edit}</button>
+      <button data-delp="${p.id}" class="h-7 w-7 rounded bg-plate text-muted hover:text-wicket grid place-items-center transition-colors" aria-label="Remove">${ICON.close}</button>
     </div>
   </div>`;
 }
@@ -138,22 +137,22 @@ function playerRow(p, i, a) {
 export async function playerForm(p) {
   const cur = p || { name: '', role: 'Batter', batStyle: 'RHB', bowlStyle: '' };
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white mb-4">${p ? 'Edit player' : 'Add player'}</h3>
+    <h3 class="text-lg font-bold text-fg mb-4">${p ? 'Edit player' : 'Add player'}</h3>
     <label class="label">Name</label>
     <input id="pName" class="field" value="${esc(cur.name)}" placeholder="e.g. Rohit Sharma" autocomplete="off" maxlength="34">
     <label class="label mt-4">Role</label>
     <div class="grid grid-cols-2 gap-2" id="pRole">
       ${ROLES.map(r => `<button type="button" data-role="${r}"
         class="rounded-xl border px-3 py-2.5 text-xs font-bold transition ${r === cur.role
-          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-white/5 border-white/10 text-slate-400'}">${r}</button>`).join('')}
+          ? 'bg-action/15 border-action text-fg' : 'bg-plate border-rule text-muted'}">${r}</button>`).join('')}
     </div>
     <label class="label mt-4">Batting hand</label>
     <div class="grid grid-cols-2 gap-2" id="pBat">
       ${BAT.map(b => `<button type="button" data-bat="${b}"
         class="rounded-xl border px-3 py-2.5 text-xs font-bold transition ${b === cur.batStyle
-          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-white/5 border-white/10 text-slate-400'}">${b === 'RHB' ? 'Right hand' : 'Left hand'}</button>`).join('')}
+          ? 'bg-action/15 border-action text-fg' : 'bg-plate border-rule text-muted'}">${b === 'RHB' ? 'Right hand' : 'Left hand'}</button>`).join('')}
     </div>
-    <label class="label mt-4">Bowling style <span class="normal-case text-slate-600">(optional)</span></label>
+    <label class="label mt-4">Bowling style <span class="font-normal text-faint">(optional)</span></label>
     <select id="pBowl" class="field">
       ${BOWL.map(b => `<option value="${esc(b)}" ${b === cur.bowlStyle ? 'selected' : ''}>${b || '— none —'}</option>`).join('')}
     </select>
@@ -167,8 +166,8 @@ export async function playerForm(p) {
 
 async function bulkAdd(teamId, ctx) {
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white mb-1">Paste a squad</h3>
-    <p class="text-xs text-slate-500 mb-3">One name per line. Add <span class="text-amber-300 font-semibold">*</span> after a name to mark the wicket-keeper.</p>
+    <h3 class="text-lg font-bold text-fg mb-1">Paste a squad</h3>
+    <p class="text-xs text-muted mb-3">One name per line. Add <span class="text-boundary font-semibold">*</span> after a name to mark the wicket-keeper.</p>
     <textarea id="bulkTa" rows="9" class="field font-mono text-xs leading-relaxed" placeholder="Rohit Sharma&#10;Shubman Gill&#10;Virat Kohli&#10;Rishabh Pant *"></textarea>
     <div class="mt-5 grid grid-cols-2 gap-3">
       <button class="btn-ghost" data-close="__dismiss">Cancel</button>
@@ -194,8 +193,8 @@ document.addEventListener('click', e => {
     const b = e.target.closest(`[${attr}]`);
     if (!b || !b.closest(sel)) return false;
     b.parentElement.querySelectorAll(`[${attr}]`).forEach(x =>
-      x.className = x.className.replace('bg-emerald-500/15 border-emerald-500/40 text-emerald-300', 'bg-white/5 border-white/10 text-slate-400'));
-    b.className = b.className.replace('bg-white/5 border-white/10 text-slate-400', 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300');
+      x.className = x.className.replace('bg-action/15 border-action text-fg', 'bg-plate border-rule text-muted'));
+    b.className = b.className.replace('bg-plate border-rule text-muted', 'bg-action/15 border-action text-fg');
     return true;
   };
   if (pick('#pRole', 'data-role')) return;
@@ -206,8 +205,8 @@ document.addEventListener('click', e => {
     if (!name) { toast('Enter a name', 'warn'); return; }
     window.__playerResult = {
       name,
-      role: document.querySelector('#pRole [data-role].text-emerald-300')?.dataset.role || 'Batter',
-      batStyle: document.querySelector('#pBat [data-bat].text-emerald-300')?.dataset.bat || 'RHB',
+      role: document.querySelector('#pRole [data-role].text-fg')?.dataset.role || 'Batter',
+      batStyle: document.querySelector('#pBat [data-bat].text-fg')?.dataset.bat || 'RHB',
       bowlStyle: document.querySelector('#pBowl')?.value || ''
     };
     closeSheet('saved');

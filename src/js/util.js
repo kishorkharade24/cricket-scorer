@@ -65,24 +65,33 @@ export function relTime(ts) {
   return fmtDate(ts);
 }
 
-/* ---------- team accent colours (literal classes so Tailwind keeps them) ---------- */
+/* ---------- team colours ----------------------------------------------
+   Eight club colours instead of twelve Tailwind defaults. Each is one CSS
+   class carrying a `--tm` variable with a value per theme, so a team mark
+   needs no safelist and no generated light-mode remap. */
 
 export const ACCENTS = [
-  { key: 'emerald', dot: 'bg-emerald-500', text: 'text-emerald-300', ring: 'ring-emerald-500/40', soft: 'bg-emerald-500/15', bd: 'border-emerald-500/30' },
-  { key: 'sky',     dot: 'bg-sky-500',     text: 'text-sky-300',     ring: 'ring-sky-500/40',     soft: 'bg-sky-500/15',     bd: 'border-sky-500/30' },
-  { key: 'violet',  dot: 'bg-violet-500',  text: 'text-violet-300',  ring: 'ring-violet-500/40',  soft: 'bg-violet-500/15',  bd: 'border-violet-500/30' },
-  { key: 'amber',   dot: 'bg-amber-500',   text: 'text-amber-300',   ring: 'ring-amber-500/40',   soft: 'bg-amber-500/15',   bd: 'border-amber-500/30' },
-  { key: 'rose',    dot: 'bg-rose-500',    text: 'text-rose-300',    ring: 'ring-rose-500/40',    soft: 'bg-rose-500/15',    bd: 'border-rose-500/30' },
-  { key: 'teal',    dot: 'bg-teal-500',    text: 'text-teal-300',    ring: 'ring-teal-500/40',    soft: 'bg-teal-500/15',    bd: 'border-teal-500/30' },
-  { key: 'orange',  dot: 'bg-orange-500',  text: 'text-orange-300',  ring: 'ring-orange-500/40',  soft: 'bg-orange-500/15',  bd: 'border-orange-500/30' },
-  { key: 'fuchsia', dot: 'bg-fuchsia-500', text: 'text-fuchsia-300', ring: 'ring-fuchsia-500/40', soft: 'bg-fuchsia-500/15', bd: 'border-fuchsia-500/30' },
-  { key: 'lime',    dot: 'bg-lime-500',    text: 'text-lime-300',    ring: 'ring-lime-500/40',    soft: 'bg-lime-500/15',    bd: 'border-lime-500/30' },
-  { key: 'cyan',    dot: 'bg-cyan-500',    text: 'text-cyan-300',    ring: 'ring-cyan-500/40',    soft: 'bg-cyan-500/15',    bd: 'border-cyan-500/30' },
-  { key: 'indigo',  dot: 'bg-indigo-500',  text: 'text-indigo-300',  ring: 'ring-indigo-500/40',  soft: 'bg-indigo-500/15',  bd: 'border-indigo-500/30' },
-  { key: 'pink',    dot: 'bg-pink-500',    text: 'text-pink-300',    ring: 'ring-pink-500/40',    soft: 'bg-pink-500/15',    bd: 'border-pink-500/30' }
+  { key: 'navy',    label: 'Navy',    cls: 'tm-navy' },
+  { key: 'maroon',  label: 'Maroon',  cls: 'tm-maroon' },
+  { key: 'bottle',  label: 'Bottle',  cls: 'tm-bottle' },
+  { key: 'gold',    label: 'Gold',    cls: 'tm-gold' },
+  { key: 'sky',     label: 'Sky',     cls: 'tm-sky' },
+  { key: 'claret',  label: 'Claret',  cls: 'tm-claret' },
+  { key: 'saffron', label: 'Saffron', cls: 'tm-saffron' },
+  { key: 'steel',   label: 'Steel',   cls: 'tm-steel' }
 ];
 
-export function accent(key) { return ACCENTS.find(a => a.key === key) || ACCENTS[0]; }
+/* Teams saved under the old Tailwind hue names keep working. */
+const LEGACY = {
+  emerald: 'bottle', rose: 'claret', violet: 'navy', amber: 'gold',
+  teal: 'bottle', orange: 'saffron', fuchsia: 'maroon', lime: 'bottle',
+  cyan: 'sky', indigo: 'navy', pink: 'claret'
+};
+
+export function accent(key) {
+  const k = LEGACY[key] || key;
+  return ACCENTS.find(a => a.key === k) || ACCENTS[0];
+}
 
 /* ---------- toast ---------- */
 
@@ -98,13 +107,13 @@ export function toast(msg, kind = 'info', ms) {
     document.body.appendChild(toastHost);
   }
   const tone = {
-    info:  'bg-ink-850/95 border-white/15 text-slate-100',
-    ok:    'bg-emerald-500/95 border-emerald-300/40 text-onaccent',
-    warn:  'bg-amber-500/95 border-amber-300/40 text-onaccent',
-    error: 'bg-rose-500/95 border-rose-300/40 text-white'
-  }[kind] || 'bg-ink-850/95 border-white/15';
+    info:  'bg-fill border-rule text-fg',
+    ok:    'bg-action border-action text-onaction',
+    warn:  'bg-boundary border-boundary text-onaction',
+    error: 'bg-wicket border-wicket text-onaction'
+  }[kind] || 'bg-fill border-rule text-fg';
   const n = document.createElement('div');
-  n.className = `pointer-events-auto cursor-pointer animate-slide-up rounded-xl border ${tone} px-4 py-2.5 text-sm font-semibold shadow-lift backdrop-blur-xl text-center`;
+  n.className = `pointer-events-auto cursor-pointer animate-pop rounded-lg border ${tone} px-4 py-2.5 text-sm font-semibold shadow-lift text-center`;
   n.textContent = msg;
   toastHost.appendChild(n);
 
@@ -134,11 +143,11 @@ export function sheet(html, opts = {}) {
   const host = $('#sheet');
   host.innerHTML = `
     <div class="fixed inset-0 z-[80] flex items-end sm:items-center justify-center">
-      <div class="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in" data-close="__dismiss"></div>
+      <div class="absolute inset-0 scrim animate-fade-in" data-close="__dismiss"></div>
       <div class="relative w-full sm:max-w-lg max-h-[88vh] overflow-y-auto no-scrollbar
-                  rounded-t-3xl sm:rounded-3xl bg-ink-900/95 border-t sm:border border-white/12
+                  rounded-t-xl sm:rounded-xl bg-plate border-t sm:border border-rule
                   shadow-lift animate-sheet-up sm:animate-pop safe-b">
-        ${opts.grab === false ? '' : '<div class="sticky top-0 pt-3 pb-1 flex justify-center bg-ink-900/95 backdrop-blur z-10"><div class="h-1 w-10 rounded-full bg-white/20"></div></div>'}
+        ${opts.grab === false ? '' : '<div class="sticky top-0 pt-3 pb-1 flex justify-center bg-plate z-10"><div class="h-1 w-10 rounded-full bg-rule"></div></div>'}
         <div class="p-5 pt-2">${html}</div>
       </div>
     </div>`;
@@ -160,8 +169,8 @@ export function sheetOpen() { return !$('#sheet').classList.contains('hidden'); 
 /** Simple yes/no. Resolves true/false. */
 export async function confirmDlg(title, message, okLabel = 'Confirm', danger = true) {
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white">${esc(title)}</h3>
-    <p class="mt-2 text-sm text-slate-400 leading-relaxed">${esc(message)}</p>
+    <h3 class="text-lg font-bold text-fg">${esc(title)}</h3>
+    <p class="mt-2 text-sm text-muted leading-relaxed">${esc(message)}</p>
     <div class="mt-5 grid grid-cols-2 gap-3">
       <button class="btn-ghost" data-close="no">Cancel</button>
       <button class="${danger ? 'btn-danger' : 'btn-primary'}" data-close="yes">${esc(okLabel)}</button>
@@ -172,7 +181,7 @@ export async function confirmDlg(title, message, okLabel = 'Confirm', danger = t
 /** Single-line prompt. Resolves string or null. */
 export async function promptDlg(title, { value = '', placeholder = '', okLabel = 'Save', type = 'text' } = {}) {
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white mb-3">${esc(title)}</h3>
+    <h3 class="text-lg font-bold text-fg mb-3">${esc(title)}</h3>
     <input id="pmt" type="${type}" class="field" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off">
     <div class="mt-5 grid grid-cols-2 gap-3">
       <button class="btn-ghost" data-close="__dismiss">Cancel</button>

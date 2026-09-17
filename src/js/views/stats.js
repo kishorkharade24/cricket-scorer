@@ -2,7 +2,7 @@
 
 import { esc, fixed, sheet, initials, sortBy } from '../util.js';
 import * as store from '../store.js';
-import { empty, badge, nameOf, tabs } from '../ui.js';
+import { empty, badge, nameOf, tabs, ICON } from '../ui.js';
 import { aggregate, leaderboards } from '../stats.js';
 
 let tab = 'batting';
@@ -38,7 +38,7 @@ export default {
 
   render() {
     const all = store.matches();
-    if (!all.length) return empty('📊', 'No stats yet', 'Score a match and every batting, bowling and fielding number is tracked automatically.',
+    if (!all.length) return empty(ICON.chart, 'No stats yet', 'Score a match and every batting, bowling and fielding number is tracked automatically.',
       `<a href="#/match/new" class="btn-primary">Start a match</a>`);
 
     const agg = [...aggregate(all).values()];
@@ -60,17 +60,17 @@ export default {
       ${topCards(lb)}
       ${tabs([{ key: 'batting', label: 'Batting' }, { key: 'bowling', label: 'Bowling' }, { key: 'fielding', label: 'Fielding' }], tab)}
       <input id="q" class="field mt-3" placeholder="Search a player…" value="${esc(q)}" autocomplete="off">
-      <p class="mt-2 text-[10px] text-slate-600">Tap a row for the full record — boundaries, hauls, fielding and more.</p>
+      <p class="mt-2 text-[10px] text-faint">Tap a row for the full record — boundaries, hauls, fielding and more.</p>
       <div class="card mt-2 p-3 overflow-x-auto no-scrollbar">
         <table class="tbl w-full min-w-[300px]">
           <thead><tr><th>Player</th>${COLS[tab].map(c => `<th>${c.l}</th>`).join('')}</tr></thead>
-          <tbody>${rows.length ? rows.map(a => `<tr data-p="${a.id}" class="cursor-pointer hover:bg-white/[.04] transition">
+          <tbody>${rows.length ? rows.map(a => `<tr data-p="${a.id}" class="cursor-pointer hover:bg-plate transition">
             <td><span class="inline-flex items-center gap-2">
-              <span class="h-6 w-6 grid place-items-center rounded-full bg-white/8 text-[9px] font-bold text-slate-300">${esc(initials(nameOf(a.id)))}</span>
-              <span><span class="block font-semibold text-white leading-tight truncate max-w-[6.5rem]">${esc(nameOf(a.id))}</span>
-              <span class="block text-[9px] text-slate-600">${esc(store.team(store.player(a.id)?.teamId)?.name || '')}</span></span></span></td>
-            ${COLS[tab].map(c => `<td class="${c.bold ? 'font-extrabold text-white' : 'text-slate-300'}">${c.fmt ? c.fmt(a) : a[c.k]}</td>`).join('')}
-          </tr>`).join('') : `<tr><td colspan="9" class="text-center text-slate-600 py-6">No players match that search</td></tr>`}
+              <span class="h-6 w-6 grid place-items-center rounded-full bg-fill border border-rule text-[9px] font-semibold text-muted">${esc(initials(nameOf(a.id)))}</span>
+              <span><span class="block font-semibold text-fg leading-tight truncate max-w-[6.5rem]">${esc(nameOf(a.id))}</span>
+              <span class="block text-[9px] text-faint">${esc(store.team(store.player(a.id)?.teamId)?.name || '')}</span></span></span></td>
+            ${COLS[tab].map(c => `<td class="${c.bold ? 'font-extrabold text-fg' : 'text-fg'}">${c.fmt ? c.fmt(a) : a[c.k]}</td>`).join('')}
+          </tr>`).join('') : `<tr><td colspan="9" class="text-center text-faint py-6">No players match that search</td></tr>`}
           </tbody></table>
       </div>`;
   },
@@ -90,19 +90,20 @@ export default {
 };
 
 function topCards(lb) {
-  const c = (icon, label, list, fmt, tone) => {
+  // Gold names the award; the figure is just a figure.
+  const c = (label, list, fmt) => {
     const a = list[0];
     if (!a) return '';
-    return `<div class="rounded-2xl border border-white/10 bg-white/[.04] p-3">
-      <p class="text-[9px] uppercase tracking-wider text-slate-500 font-bold">${icon} ${esc(label)}</p>
-      <p class="mt-1 text-[12px] font-bold text-white truncate">${esc(nameOf(a.id))}</p>
-      <p class="num text-lg font-extrabold ${tone} leading-tight">${fmt(a)}</p></div>`;
+    return `<div class="rounded-lg border border-rule bg-plate p-3">
+      <p class="text-[11px] font-semibold text-boundary">${esc(label)}</p>
+      <p class="mt-0.5 text-[12px] font-semibold text-fg truncate">${esc(nameOf(a.id))}</p>
+      <p class="display text-xl font-extrabold text-fg leading-tight">${fmt(a)}</p></div>`;
   };
   const cards = [
-    c('🟠', 'Most runs', lb.runs, a => a.runs, 'text-orange-300'),
-    c('🟣', 'Most wickets', lb.wickets, a => a.wkts, 'text-violet-300'),
-    c('💥', 'Most sixes', lb.sixes, a => a.f6, 'text-sky-300'),
-    c('🧤', 'Most catches', lb.fielding, a => a.dismissals, 'text-amber-300')
+    c('Most runs', lb.runs, a => a.runs),
+    c('Most wickets', lb.wickets, a => a.wkts),
+    c('Most sixes', lb.sixes, a => a.f6),
+    c('Most catches', lb.fielding, a => a.dismissals)
   ].filter(Boolean);
   if (!cards.length) return '';
   return `<div class="grid grid-cols-2 gap-2.5 mb-4">${cards.join('')}</div>`;
@@ -113,22 +114,22 @@ async function playerSheet(id) {
   const p = store.player(id);
   if (!a) return;
   const t = store.team(p?.teamId);
-  const line = (l, v) => `<div class="flex justify-between py-1.5 border-b border-white/[.05] text-[13px]">
-    <span class="text-slate-500">${esc(l)}</span><span class="num font-semibold text-white">${v}</span></div>`;
+  const line = (l, v) => `<div class="flex justify-between py-1.5 border-b border-rule text-[13px]">
+    <span class="text-muted">${esc(l)}</span><span class="num font-semibold text-fg">${v}</span></div>`;
 
   await sheet(`
     <div class="flex items-center gap-3">
-      <span class="h-12 w-12 grid place-items-center rounded-full bg-white/8 border border-white/10 text-sm font-bold text-slate-200">${esc(initials(p?.name))}</span>
+      <span class="h-12 w-12 grid place-items-center rounded-full bg-plate border border-rule text-sm font-bold text-fg">${esc(initials(p?.name))}</span>
       <div class="min-w-0">
-        <h3 class="text-lg font-bold text-white truncate">${esc(p?.name || 'Player')}</h3>
-        <p class="text-[11px] text-slate-500">${esc([t?.name, p?.role, p?.batStyle, p?.bowlStyle].filter(Boolean).join(' · '))}</p>
+        <h3 class="text-lg font-bold text-fg truncate">${esc(p?.name || 'Player')}</h3>
+        <p class="text-[11px] text-muted">${esc([t?.name, p?.role, p?.batStyle, p?.bowlStyle].filter(Boolean).join(', '))}</p>
       </div>
     </div>
 
     <div class="grid grid-cols-3 gap-2 mt-4 text-center">
-      <div class="rounded-xl bg-white/5 p-2.5"><p class="text-[9px] uppercase text-slate-500 font-bold">Matches</p><p class="num text-lg font-extrabold text-white">${a.mat}</p></div>
-      <div class="rounded-xl bg-white/5 p-2.5"><p class="text-[9px] uppercase text-slate-500 font-bold">Runs</p><p class="num text-lg font-extrabold text-orange-300">${a.runs}</p></div>
-      <div class="rounded-xl bg-white/5 p-2.5"><p class="text-[9px] uppercase text-slate-500 font-bold">Wickets</p><p class="num text-lg font-extrabold text-violet-300">${a.wkts}</p></div>
+      <div class="rounded-lg bg-fill p-2.5"><p class="text-[11px] text-muted">Matches</p><p class="display text-xl font-extrabold text-fg">${a.mat}</p></div>
+      <div class="rounded-lg bg-fill p-2.5"><p class="text-[11px] text-muted">Runs</p><p class="display text-xl font-extrabold text-fg">${a.runs}</p></div>
+      <div class="rounded-lg bg-fill p-2.5"><p class="text-[11px] text-muted">Wickets</p><p class="display text-xl font-extrabold text-fg">${a.wkts}</p></div>
     </div>
 
     <p class="label mt-5">Batting</p>

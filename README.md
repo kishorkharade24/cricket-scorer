@@ -8,12 +8,15 @@ No backend, no accounts, no network calls of any kind — everything lives in th
 browser's `localStorage` on the device you score on.
 
 Plain HTML + ES modules + Tailwind. No framework, no npm runtime dependencies.
+Two typefaces (Barlow and Barlow Condensed, SIL Open Font License) are bundled as
+woff2 so the app looks the same on every phone and still works with no connection.
 Two single-file libraries are vendored into `src/js/vendor/` for the live
 scoreboard's QR handshake — qrcode-generator (MIT) to draw codes and jsQR
 (Apache-2.0) to read them where the platform has no barcode detector; the
 latter loads only when scanning. Everything else is first-party.
-Source is ~44 KB of CSS and ~197 KB of JS, which is **~61 KB gzipped over the
-wire**, all of it precached on first load.
+Source is ~40 KB of CSS and ~348 KB of JS. Over the wire that is **~106 KB
+gzipped** for the app itself, plus **109 KB of fonts** and 68 KB of QR libraries
+that only load when you scan. All of it is precached on first load.
 
 ---
 
@@ -159,6 +162,9 @@ service worker requires.
   scoring. No teams to create first. Teams and players are still saved, so
   career figures build up, and reusing a team name next week carries on the
   same record.
+- **Play last week's game again** — the quick match screen offers the previous
+  turf match at the top: both squads, the overs and the rules come back filled
+  in, and you edit whoever did or did not turn up this week before starting.
 - **Split the sides for me** — the app rates everyone on what they have
   actually done and deals them out in a snake draft, then tells you how close
   the two sides are. Players it has never seen are treated as average so they
@@ -273,8 +279,17 @@ partnership bars and an over-by-over ball map.
 - Orange cap / purple cap and five more leaderboards.
 
 ### Appearance
-Dark by default, with a light theme and a "follow the system" option. The theme
-is applied before the first paint, so there is no flash of the wrong one.
+Two themes, each built from a real cricket object. **Scoreboard** is the default:
+a dark green board with chalk-white number plates, the way a manual scoreboard
+looks at the ground. **Scorebook** is cream paper with ink and ruled lines. A
+third option follows the phone's own setting. Every colour resolves through a CSS
+variable, so switching is one attribute on `<html>`, applied before the first
+paint so there is no flash of the wrong one.
+
+Colour carries meaning rather than decoration. Red means a wicket fell and nothing
+else. Gold means the ball reached the boundary — a four is outlined, a six is
+filled. Everything else is the plain text ramp. Teams pick from eight club colours,
+each a single CSS variable with a value per theme.
 
 ### Stats
 Career batting, bowling and fielding aggregates across every match on the device,
@@ -338,6 +353,7 @@ cricket-scorer/
 ├── icons/                  generated PNG + SVG icons
 ├── src/
 │   ├── css/input.css       Tailwind source  →  app.css (built, committed)
+│   ├── fonts/              Barlow + Barlow Condensed, woff2 (bundled, offline)
 │   └── js/
 │       ├── app.js          boot + hash router
 │       ├── engine.js       ★ the scoring engine (pure, no DOM, no storage)

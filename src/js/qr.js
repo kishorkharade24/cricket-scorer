@@ -152,9 +152,9 @@ import { sheet, closeSheet, promptDlg, copyText, toast, esc } from './util.js';
 /** Show a connection code as a QR, with copy as the fallback transport. */
 export async function showCodeSheet({ title, subtitle, code, nextLabel }) {
   const p = sheet(`
-    <h3 class="text-lg font-bold text-white">${esc(title)}</h3>
-    <p class="text-xs text-slate-500 mt-1 leading-snug">${esc(subtitle)}</p>
-    <div class="mt-4 rounded-2xl bg-pure p-3 grid place-items-center">
+    <h3 class="text-lg font-bold text-fg">${esc(title)}</h3>
+    <p class="text-xs text-muted mt-1 leading-snug">${esc(subtitle)}</p>
+    <div class="mt-4 rounded-xl bg-pure p-3 grid place-items-center">
       <canvas id="qrOut" class="w-full max-w-[360px] aspect-square [image-rendering:pixelated]"></canvas>
     </div>
     <button class="btn-ghost w-full mt-3 text-xs" data-close="copy">Copy the code instead</button>
@@ -179,13 +179,13 @@ export async function showCodeSheet({ title, subtitle, code, nextLabel }) {
 /** Scan a code with the camera; paste is always offered as the way out. */
 export async function scanCodeSheet({ title, subtitle }) {
   const p = sheet(`
-    <h3 class="text-lg font-bold text-white">${esc(title)}</h3>
-    <p class="text-xs text-slate-500 mt-1 leading-snug">${esc(subtitle)}</p>
-    <div class="mt-4 rounded-2xl overflow-hidden bg-black aspect-square grid place-items-center relative">
+    <h3 class="text-lg font-bold text-fg">${esc(title)}</h3>
+    <p class="text-xs text-muted mt-1 leading-snug">${esc(subtitle)}</p>
+    <div class="mt-4 rounded-xl overflow-hidden bg-black aspect-square grid place-items-center relative">
       <video id="scanVid" muted playsinline class="w-full h-full object-cover"></video>
-      <div class="absolute inset-[12%] rounded-2xl border-2 border-white/50 pointer-events-none"
+      <div class="absolute inset-[12%] rounded-xl border-2 border-rule pointer-events-none"
            style="mask: linear-gradient(#000 0 0); box-shadow: 0 0 0 999px rgba(0,0,0,.25)"></div>
-      <p id="scanErr" class="absolute inset-x-4 bottom-3 text-center text-[11px] text-amber-300 drop-shadow"></p>
+      <p id="scanErr" class="absolute inset-x-4 bottom-3 text-center text-[11px] text-boundary drop-shadow"></p>
     </div>
     <div class="mt-3 grid grid-cols-2 gap-3">
       <button class="btn-ghost" data-close="__dismiss">Cancel</button>

@@ -27,7 +27,7 @@ export default {
   sub: ctx => {
     const m = store.match(ctx.id);
     if (!m) return '';
-    return `${m.overs} ov · ${m.stage || 'Friendly'}${m.venue ? ' · ' + m.venue : ''}`;
+    return `${m.overs} overs, ${m.stage || 'Friendly'}${m.venue ? ', ' + m.venue : ''}`;
   },
   actions: ctx => {
     const m = store.match(ctx.id);
@@ -36,18 +36,18 @@ export default {
     const antenna = '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 11v9"/><circle cx="12" cy="9.5" r="1.6" fill="currentColor" stroke="none"/><path d="M8.5 6a5 5 0 0 0 0 7M15.5 6a5 5 0 0 1 0 7M5.6 3.4a9 9 0 0 0 0 12.2M18.4 3.4a9 9 0 0 1 0 12.2"/></svg>';
     return `<button data-act="golive" aria-label="Live scoreboard" title="Live scoreboard"
         class="h-9 rounded-xl border grid place-items-center px-2 active:scale-90 transition ${
-          pending ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 animate-pulse-ring'
-          : on ? 'bg-sky-500/15 border-sky-500/30 text-sky-300'
-          : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}">
+          pending ? 'bg-boundary/20 border-boundary/40 text-boundary animate-pulse-ring'
+          : on ? 'bg-boundary/15 border-boundary/30 text-boundary'
+          : 'bg-plate border-rule text-fg hover:bg-fill'}">
         <span class="flex items-center gap-1">${antenna}${on ? `<span class="num text-[11px] font-bold">${pending ? '+' + pending : live.viewerCount()}</span>` : ''}</span>
       </button>
-      <a href="#/scorecard/${ctx.id}" class="h-9 w-9 rounded-xl bg-white/5 border border-white/10 grid place-items-center text-slate-300 hover:bg-white/10 active:scale-90 transition" aria-label="Scorecard">${ICON.card}</a>
+      <a href="#/scorecard/${ctx.id}" class="h-9 w-9 rounded-xl bg-plate border border-rule grid place-items-center text-fg hover:bg-fill active:scale-90 transition" aria-label="Scorecard">${ICON.card}</a>
       ${iconBtn('more', '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>', 'More options')}`;
   },
 
   render(ctx) {
     const m = store.match(ctx.id);
-    if (!m) return empty('❓', 'Match not found', 'It may have been deleted.', `<a href="#/matches" class="btn-ghost">All matches</a>`);
+    if (!m) return empty(ICON.question, 'Match not found', 'It may have been deleted.', `<a href="#/matches" class="btn-ghost">All matches</a>`);
     if (lastMatchId !== ctx.id) { armed = null; lastMatchId = ctx.id; }
 
     const st = E.computeInnings(m, m.innings.length - 1);
@@ -58,8 +58,8 @@ export default {
       ${scoreboard(m, st, first)}
       ${crease(m, st)}
       ${overStrip(st)}
-      ${m.status === 'completed' ? finishedBanner(m, st) : pad(st)}
-      ${lastOvers(st)}`;
+      ${lastOvers(st)}
+      ${m.status === 'completed' ? finishedBanner(m, st) : pad(st)}`;
   },
 
   mount(root, ctx) {
@@ -121,9 +121,9 @@ export default {
 function joinBanner(m) {
   if (!live.hosting() || live.host.matchId !== m.id || !live.host.requests.length) return '';
   return live.host.requests.map(r => `
-    <div class="mb-3 flex items-center gap-2.5 rounded-2xl bg-amber-500/12 border border-amber-500/30 px-3.5 py-3 animate-pop">
-      <span class="text-lg">📡</span>
-      <span class="flex-1 min-w-0 text-[13px] font-semibold text-white">A viewer asks to join the live score</span>
+    <div class="mb-3 flex items-center gap-2.5 rounded-xl bg-boundary/10 border border-boundary/30 px-3.5 py-3 animate-pop">
+      <span class="text-lg">${ICON.antenna}</span>
+      <span class="flex-1 min-w-0 text-[13px] font-semibold text-fg">A viewer asks to join the live score</span>
       <button data-liveacc="${r.id}" class="btn-primary !px-3.5 !py-2 text-xs">Accept</button>
       <button data-liveign="${r.id}" class="btn-ghost !px-3 !py-2 text-xs">Ignore</button>
     </div>`).join('');
@@ -136,46 +136,44 @@ function joinBanner(m) {
 function scoreboard(m, st, first) {
   const chasing = st.target != null;
   const eq = chasing && st.need > 0
-    ? `Need <b class="text-white">${st.need}</b> from <b class="text-white">${st.ballsLeft}</b> ball${st.ballsLeft === 1 ? '' : 's'}`
-    : chasing ? 'Target reached' : `Projected <b class="text-white">${st.projected}</b>`;
+    ? `Need <b class="text-fg">${st.need}</b> from <b class="text-fg">${st.ballsLeft}</b> ball${st.ballsLeft === 1 ? '' : 's'}`
+    : chasing ? 'Target reached' : `Projected <b class="text-fg">${st.projected}</b>`;
 
-  return `<div class="card p-5 relative overflow-hidden animate-slide-up">
-    <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-emerald-500/12 blur-3xl"></div>
-    <div class="relative">
-      <div class="flex items-center gap-2 mb-3">
-        ${m.status === 'live' ? livePill() : `<span class="pill bg-white/8 text-slate-400">Result</span>`}
-        <span class="text-[11px] text-slate-400 truncate">${esc(teamName(st.battingTeamId))} ${m.innings.length > 1 ? '(2nd inns)' : '(1st inns)'}</span>
-        ${st.freeHit ? `<span class="pill bg-amber-400 text-onaccent animate-pop ml-auto">FREE HIT</span>` : ''}
-        ${live.hosting() && live.host.matchId === m.id ? `<span class="pill bg-sky-500/15 text-sky-300 ${st.freeHit ? '' : 'ml-auto'}">📡 ${live.viewerCount()}</span>` : ''}
-      </div>
+  // One small figure each, on a single line. Boxing them cost a row of padding
+  // the scorer pays for on every ball.
+  const fig = (label, value, tone = 'text-fg') =>
+    `<span class="truncate">${label} <b class="display text-base font-extrabold ${tone}">${value}</b></span>`;
 
-      <div class="flex items-end gap-3">
-        ${badge(st.battingTeamId, 'md')}
-        <div class="flex items-end gap-1.5">
-          <span class="text-5xl font-black num text-white leading-none tracking-tight animate-count-up">${st.runs}</span>
-          <span class="text-2xl font-black num text-slate-500 leading-none">/${st.wickets}</span>
-        </div>
-        <div class="ml-auto text-right">
-          <p class="num text-xl font-extrabold text-white leading-none">${st.oversText}</p>
-          <p class="text-[10px] text-slate-500 font-semibold">of ${st.maxOvers} ov</p>
-        </div>
-      </div>
-
-      <div class="mt-4 grid grid-cols-3 gap-2 text-center">
-        <div class="rounded-xl bg-white/[.05] py-2">
-          <p class="text-[9px] uppercase tracking-wider text-slate-500 font-bold">CRR</p>
-          <p class="num text-sm font-extrabold text-white">${fixed(st.crr)}</p></div>
-        <div class="rounded-xl bg-white/[.05] py-2">
-          <p class="text-[9px] uppercase tracking-wider text-slate-500 font-bold">${chasing ? 'RRR' : 'Extras'}</p>
-          <p class="num text-sm font-extrabold ${chasing && st.rrr > st.crr + 2 ? 'text-rose-300' : 'text-white'}">${chasing ? (isFinite(st.rrr) ? fixed(st.rrr) : '—') : st.extrasTotal}</p></div>
-        <div class="rounded-xl bg-white/[.05] py-2">
-          <p class="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Wkts left</p>
-          <p class="num text-sm font-extrabold text-white">${st.wicketsLeft}</p></div>
-      </div>
-
-      <p class="mt-3 text-center text-xs text-slate-400">${eq}
-        ${first ? `<span class="block mt-0.5 text-[11px] text-slate-600">${esc(teamName(first.battingTeamId))} made ${first.runs}/${first.wickets} (${first.oversText})</span>` : ''}</p>
+  return `<div class="card p-4 sticky top-0 z-10">
+    <div class="flex items-center gap-2 mb-2">
+      ${m.status === 'live' ? livePill() : `<span class="pill">Result</span>`}
+      <span class="text-[11px] text-muted truncate">${esc(teamName(st.battingTeamId))} ${m.innings.length > 1 ? 'second innings' : 'first innings'}</span>
+      ${st.freeHit ? `<span class="pill border-boundary bg-boundary text-onaction animate-pop ml-auto">Free hit</span>` : ''}
+      ${live.hosting() && live.host.matchId === m.id ? `<span class="pill-boundary ${st.freeHit ? '' : 'ml-auto'}">${ICON.antenna} ${live.viewerCount()}</span>` : ''}
     </div>
+
+    <div class="flex items-end gap-3">
+      ${badge(st.battingTeamId, 'md')}
+      <div class="flex items-end gap-1.5">
+        <span class="display text-6xl font-black text-fg leading-[.8]">${st.runs}</span>
+        <span class="display text-3xl font-extrabold text-muted leading-none">/${st.wickets}</span>
+      </div>
+      <div class="ml-auto text-right">
+        <p class="display text-2xl font-extrabold text-fg leading-none">${st.oversText}</p>
+        <p class="text-[11px] text-muted leading-tight">of ${st.maxOvers} overs</p>
+      </div>
+    </div>
+
+    <p class="mt-2 text-sm text-fg">${eq}</p>
+
+    <div class="mt-2 pt-2 border-t border-rule flex items-baseline justify-between gap-2 text-[11px] text-muted">
+      ${fig('Run rate', fixed(st.crr))}
+      ${fig(chasing ? 'Required' : 'Extras',
+            chasing ? (isFinite(st.rrr) ? fixed(st.rrr) : '—') : st.extrasTotal,
+            chasing && st.rrr > st.crr + 2 ? 'text-wicket' : 'text-fg')}
+      ${fig('Wickets left', st.wicketsLeft)}
+    </div>
+    ${first ? `<p class="mt-1.5 text-[11px] text-faint">${esc(teamName(first.battingTeamId))} made ${first.runs}/${first.wickets} (${first.oversText})</p>` : ''}
   </div>`;
 }
 
@@ -184,47 +182,43 @@ function scoreboard(m, st, first) {
  * ------------------------------------------------------------------ */
 
 function crease(m, st) {
+  // Three rows and a rule. The old version spent a third of its height on
+  // "Batting" / "Bowling" headings and a column legend that a scorer can read
+  // off the numbers themselves.
   const bat = (id, onStrike) => {
-    if (!id) return `<div class="flex items-center gap-2.5 py-2 opacity-40"><span class="text-xs text-slate-500">— waiting for a batter —</span></div>`;
+    if (!id) return `<div class="flex items-center gap-2.5 py-1 opacity-50"><span class="text-xs text-muted">Waiting for a batter</span></div>`;
     const b = st.bat[id] || { r: 0, b: 0, f4: 0, f6: 0 };
-    return `<div class="flex items-center gap-2.5 py-1.5 ${onStrike ? '' : 'opacity-70'}">
-      <span class="h-7 w-7 shrink-0 grid place-items-center rounded-full text-[10px] font-bold ${onStrike ? 'bg-emerald-500 text-onaccent' : 'bg-white/8 text-slate-300'}">${esc(initials(nameOf(id)))}</span>
-      <span class="flex-1 min-w-0 text-[13px] font-semibold text-white truncate">${esc(shortName(nameOf(id)))}${onStrike ? '<span class="text-emerald-400">*</span>' : ''}</span>
-      <span class="num text-[13px] font-bold text-white">${b.r}<span class="text-slate-500 font-medium"> (${b.b})</span></span>
-      <span class="num text-[10px] text-slate-500 w-16 text-right">${b.f4}×4 ${b.f6}×6</span>
-      <span class="num text-[10px] text-slate-500 w-9 text-right">${b.b ? fixed((b.r / b.b) * 100, 0) : '—'}</span>
+    return `<div class="flex items-center gap-2.5 py-1 ${onStrike ? '' : 'opacity-70'}">
+      <span class="h-7 w-7 shrink-0 grid place-items-center rounded-full text-[10px] font-semibold ${onStrike ? 'bg-action text-onaction' : 'bg-fill text-muted'}">${esc(initials(nameOf(id)))}</span>
+      <span class="flex-1 min-w-0 text-[13px] font-semibold text-fg truncate">${esc(shortName(nameOf(id)))}${onStrike ? '*' : ''}</span>
+      <span class="display text-base font-extrabold text-fg">${b.r}<span class="text-muted font-semibold"> (${b.b})</span></span>
+      <span class="num text-[10px] text-muted w-14 text-right">${b.f4}×4 ${b.f6}×6</span>
+      <span class="num text-[10px] text-muted w-8 text-right">${b.b ? fixed((b.r / b.b) * 100, 0) : '—'}</span>
     </div>`;
   };
 
   const bowlerRow = () => {
     if (!st.bowler) {
-      return `<button data-act="pickbowler" class="w-full flex items-center gap-2.5 py-2 text-left">
-        <span class="h-7 w-7 grid place-items-center rounded-full bg-amber-500/20 text-amber-300 text-xs">?</span>
-        <span class="flex-1 text-[13px] font-semibold text-amber-300">Choose the next bowler</span>
-        <span class="text-slate-600">›</span></button>`;
+      return `<button data-act="pickbowler" class="w-full flex items-center gap-2.5 py-1 text-left">
+        <span class="h-7 w-7 grid place-items-center rounded-full bg-boundary/20 text-boundary text-xs">?</span>
+        <span class="flex-1 text-[13px] font-semibold text-boundary">Choose the next bowler</span>
+        <span class="text-faint">${ICON.chevron}</span></button>`;
     }
     const w = st.bowl[st.bowler];
     const left = E.oversLeftFor(st, st.bowler);
-    return `<div class="flex items-center gap-2.5 py-1.5">
-      <span class="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold">${esc(initials(nameOf(st.bowler)))}</span>
-      <span class="flex-1 min-w-0 text-[13px] font-semibold text-white truncate">${esc(shortName(nameOf(st.bowler)))}</span>
-      <span class="num text-[13px] font-bold text-white">${w.wkts}-${w.runs}</span>
-      <span class="num text-[10px] text-slate-500 w-16 text-right">${oversOf(w.balls)} ov · ${w.maidens}m</span>
-      <span class="num text-[10px] text-slate-500 w-9 text-right">${w.balls ? fixed((w.runs * 6) / w.balls) : '—'}</span>
-    </div>
-    <p class="text-[10px] text-slate-600 pl-10">${left} over${left === 1 ? '' : 's'} left in the quota</p>`;
+    return `<div class="flex items-center gap-2.5 py-1">
+      <span class="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-wicket/20 text-wicket text-[10px] font-semibold">${esc(initials(nameOf(st.bowler)))}</span>
+      <span class="flex-1 min-w-0 text-[13px] font-semibold text-fg truncate">${esc(shortName(nameOf(st.bowler)))}</span>
+      <span class="display text-base font-extrabold text-fg">${w.wkts}-${w.runs}</span>
+      <span class="num text-[10px] text-muted w-14 text-right">${oversOf(w.balls)} ov, ${left} left</span>
+      <span class="num text-[10px] text-muted w-8 text-right">${w.balls ? fixed((w.runs * 6) / w.balls) : '—'}</span>
+    </div>`;
   };
 
-  return `<div class="card p-4 mt-3">
-    <div class="flex items-center justify-between mb-1">
-      <p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Batting</p>
-      <span class="num text-[10px] text-slate-600">R (B) &nbsp; 4s 6s &nbsp; SR</span>
-    </div>
+  return `<div class="card p-3 mt-2">
     ${bat(st.striker, true)}
     ${bat(st.nonStriker, false)}
-    ${st.partner ? `<p class="text-[10px] text-slate-600 mt-1">Partnership ${st.partner.runs} (${st.partner.balls})</p>` : ''}
-    <div class="border-t border-white/[.07] mt-2.5 pt-2">
-      <p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Bowling</p>
+    <div class="mt-1.5 pt-1.5 border-t border-rule">
       ${bowlerRow()}
     </div>
   </div>`;
@@ -233,30 +227,30 @@ function crease(m, st) {
 function overStrip(st) {
   const balls = st.thisOver || [];
   const left = 6 - st.legalInOver;
-  return `<div class="card p-3 mt-3">
+  return `<div class="card p-3 mt-2">
     <div class="flex items-center gap-2">
-      <span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold shrink-0">This over</span>
+      <span class="text-[11px] text-muted shrink-0">This over</span>
       <div class="flex gap-1.5 overflow-x-auto no-scrollbar flex-1">
         ${balls.length ? balls.map((c, i) => ballChip(c, i)).join('')
-          : '<span class="text-[11px] text-slate-600 py-1.5">no balls bowled yet</span>'}
-        ${Array.from({ length: Math.max(0, left) }, () => '<span class="w-8 h-8 shrink-0 rounded-lg border border-dashed border-white/10"></span>').join('')}
+          : '<span class="text-[11px] text-faint py-1.5">no balls bowled yet</span>'}
+        ${Array.from({ length: Math.max(0, left) }, () => '<span class="w-8 h-8 shrink-0 rounded-lg border border-dashed border-rule"></span>').join('')}
       </div>
-      <span class="num text-[11px] font-bold text-slate-500 shrink-0">${st.curOver ? st.curOver.runs : 0}</span>
+      <span class="num text-[11px] font-bold text-muted shrink-0">${st.curOver ? st.curOver.runs : 0}</span>
     </div>
   </div>`;
 }
 
 function lastOvers(st) {
-  const recent = st.overs.slice(-4).reverse();
+  const recent = st.overs.slice(-3).reverse();
   if (!recent.length) return '';
-  return `<div class="card p-4 mt-3">
-    <p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2.5">Recent overs</p>
+  return `<div class="card p-3 mt-2">
+    <p class="text-[11px] text-muted mb-2">Recent overs</p>
     <div class="space-y-2.5">
       ${recent.map(o => `<div class="flex items-start gap-2">
-        <span class="num text-[11px] font-bold text-slate-500 w-4 pt-0.5">${o.n}</span>
+        <span class="num text-[11px] font-bold text-muted w-4 pt-0.5">${o.n}</span>
         <div class="flex flex-wrap gap-1 flex-1 min-w-0">${o.balls.map(c => ballChip(c, 0, true)).join('')}</div>
-        <span class="num text-[11px] font-bold text-white w-7 text-right pt-0.5">${o.runs}</span>
-        <span class="text-[10px] text-slate-600 w-16 truncate text-right pt-0.5">${esc(shortName(nameOf(o.bowler)))}</span>
+        <span class="num text-[11px] font-bold text-fg w-7 text-right pt-0.5">${o.runs}</span>
+        <span class="text-[10px] text-faint w-16 truncate text-right pt-0.5">${esc(shortName(nameOf(o.bowler)))}</span>
       </div>`).join('')}
     </div>
   </div>`;
@@ -264,10 +258,10 @@ function lastOvers(st) {
 
 function finishedBanner(m, st) {
   const states = m.innings.map((_, i) => E.computeInnings(m, i));
-  return `<div class="card p-6 mt-3 text-center animate-pop">
-    <p class="text-3xl">🏆</p>
-    <p class="mt-2 text-base font-extrabold text-white">${esc(E.resultText(m, states, teamName) || 'Match over')}</p>
-    ${m.motm ? `<p class="mt-1 text-xs text-amber-300 font-semibold">Player of the match — ${esc(nameOf(m.motm))}</p>` : ''}
+  return `<div class="card p-5 mt-2 text-center animate-pop">
+    <p class="text-3xl">${ICON.trophy}</p>
+    <p class="mt-2 text-base font-extrabold text-fg">${esc(E.resultText(m, states, teamName) || 'Match over')}</p>
+    ${m.motm ? `<p class="mt-1 text-xs text-boundary font-semibold">Player of the match — ${esc(nameOf(m.motm))}</p>` : ''}
     <div class="mt-4 grid grid-cols-2 gap-3">
       <button data-act="undo" class="btn-ghost">${ICON.undo} Undo last ball</button>
       <button data-act="scorecard" class="btn-primary">Full scorecard</button>
@@ -281,11 +275,13 @@ function finishedBanner(m, st) {
 
 function pad(st) {
   const blocked = st.needsBatter || st.needsBowler || st.closed;
+  // Extras are a mode you arm, not a kind of run. They all look the same until
+  // one is armed, and then it is filled — the state is the only difference.
   const EX = [
-    { k: 'wd', label: 'Wide',   cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30', on: 'bg-amber-500 text-onaccent border-amber-400' },
-    { k: 'nb', label: 'No ball',cls: 'bg-orange-500/15 text-orange-300 border-orange-500/30', on: 'bg-orange-500 text-onaccent border-orange-400' },
-    { k: 'b',  label: 'Bye',    cls: 'bg-teal-500/15 text-teal-300 border-teal-500/30', on: 'bg-teal-500 text-onaccent border-teal-400' },
-    { k: 'lb', label: 'Leg bye',cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30', on: 'bg-cyan-500 text-onaccent border-cyan-400' }
+    { k: 'wd', label: 'Wide' },
+    { k: 'nb', label: 'No ball' },
+    { k: 'b',  label: 'Bye' },
+    { k: 'lb', label: 'Leg bye' }
   ];
 
   const hint = armed === 'wd' ? 'Wide armed — tap the runs the batters <b>ran</b> (0 for a plain wide)'
@@ -294,36 +290,35 @@ function pad(st) {
     : armed === 'lb' ? 'Leg byes armed — tap how many leg byes were run'
     : null;
 
+  // A six is the filled version of a four: more, not different.
   const runBtn = n => {
-    const tone = n === 6 ? 'bg-violet-500/20 text-violet-200 border-violet-500/40'
-      : n === 4 ? 'bg-sky-500/20 text-sky-200 border-sky-500/40'
-      : n === 0 ? 'bg-white/[.05] text-slate-400 border-white/10'
-      : 'bg-white/10 text-white border-white/15';
-    return `<button data-run="${n}" class="runbtn h-16 text-2xl ${tone}" ${blocked ? 'disabled' : ''}>${n === 0 && !armed ? '•' : n}</button>`;
+    const cls = n === 6 ? 'key-six' : n === 4 ? 'key-four' : n === 0 ? 'key-dot' : 'key';
+    return `<button data-run="${n}" class="${cls} h-16 text-3xl" ${blocked ? 'disabled' : ''}>${n === 0 && !armed ? '\u2022' : n}</button>`;
   };
 
   const zones = (st.rules?.zones || []).filter(z => z && Number.isFinite(+z.runs));
 
-  return `<div class="card p-3 mt-3 ${blocked ? 'opacity-60 pointer-events-none' : ''}">
+  return `<div class="card p-3 mt-2 sticky bottom-0 z-10 ${blocked ? 'opacity-60 pointer-events-none' : ''}">
     ${zones.length ? `<div class="flex flex-wrap gap-2 mb-2">
-      ${zones.map((z, i) => `<button data-zone="${i}" class="runbtn h-11 flex-1 min-w-[7rem] px-2 text-[11px] bg-lime-500/15 text-lime-300 border-lime-500/30" ${blocked ? 'disabled' : ''}>
+      ${zones.map((z, i) => `<button data-zone="${i}" class="key-four h-11 flex-1 min-w-[7rem] px-2 text-xs" ${blocked ? 'disabled' : ''}>
         <span class="truncate">${esc(z.label || 'Zone')}</span>
         <span class="ml-1.5 font-extrabold num">+${+z.runs}</span></button>`).join('')}
     </div>
-    <p class="text-[10px] text-center text-slate-600 mb-2">Fixed runs · the batters do not cross, so the strike stays</p>` : ''}
+    <p class="text-[10px] text-center text-faint mb-2">Fixed runs, the batters do not cross, so the strike stays</p>` : ''}
     <div class="grid grid-cols-4 gap-2 mb-2">
-      ${EX.map(x => `<button data-extra="${x.k}" class="runbtn h-11 text-[11px] uppercase tracking-wide border ${armed === x.k ? x.on + ' animate-pop' : x.cls}">${x.label}</button>`).join('')}
+      ${EX.map(x => `<button data-extra="${x.k}" class="h-11 rounded-lg border text-xs font-semibold transition-colors ${armed === x.k
+        ? 'bg-action text-onaction border-action' : 'bg-plate text-muted border-rule'}">${x.label}</button>`).join('')}
     </div>
-    ${hint ? `<p class="text-[11px] text-center text-amber-200/90 mb-2 leading-snug">${hint}</p>` : ''}
+    ${hint ? `<p class="text-[11px] text-center text-boundary mb-2 leading-snug">${hint}</p>` : ''}
     <div class="grid grid-cols-4 gap-2">
       ${[0, 1, 2, 3].map(runBtn).join('')}
       ${[4, 5, 6].map(runBtn).join('')}
-      <button data-act="wicket" class="runbtn h-16 text-xl bg-rose-500/20 text-rose-200 border-rose-500/45" ${blocked ? 'disabled' : ''}>OUT</button>
+      <button data-act="wicket" class="key-out h-16 text-xl" ${blocked ? 'disabled' : ''}>OUT</button>
     </div>
     <div class="grid grid-cols-3 gap-2 mt-2">
-      <button data-act="undo" class="btn-ghost !py-3 text-xs">${ICON.undo} Undo</button>
-      <button data-act="swap" class="btn-ghost !py-3 text-xs">⇄ Swap</button>
-      <button data-act="bigruns" class="btn-ghost !py-3 text-xs">7+ runs</button>
+      <button data-act="undo" class="btn-ghost !py-2.5 text-xs">${ICON.undo} Undo</button>
+      <button data-act="swap" class="btn-ghost !py-2.5 text-xs">Swap strike</button>
+      <button data-act="bigruns" class="btn-ghost !py-2.5 text-xs">7 or more</button>
     </div>
   </div>`;
 }
@@ -356,11 +351,11 @@ function celebrate(ev) {
   if (!store.settings().celebrate) return;
   const fx = document.querySelector('#fx');
   let text = null, cls = '';
-  if (ev.w && !E.dismissal(ev.w.type).notOut) { text = 'OUT!'; cls = 'text-rose-400'; }
-  else if (ev.r === 6 && !ev.b && !ev.lb) { text = 'SIX!'; cls = 'text-violet-300'; }
-  else if (ev.r === 4 && !ev.b && !ev.lb) { text = 'FOUR'; cls = 'text-sky-300'; }
+  if (ev.w && !E.dismissal(ev.w.type).notOut) { text = 'Out'; cls = 'text-wicket'; }
+  else if (ev.r === 6 && !ev.b && !ev.lb) { text = 'Six'; cls = 'text-boundary'; }
+  else if (ev.r === 4 && !ev.b && !ev.lb) { text = 'Four'; cls = 'text-boundary'; }
   if (!text) return;
-  fx.innerHTML = `<span class="animate-celebrate text-6xl font-black tracking-tighter ${cls} drop-shadow-[0_0_30px_currentColor]">${text}</span>`;
+  fx.innerHTML = `<span class="animate-celebrate display text-7xl font-black ${cls}">${text}</span>`;
   fx.classList.remove('hidden');
   setTimeout(() => { fx.classList.add('hidden'); fx.innerHTML = ''; }, 1000);
 }
@@ -420,11 +415,11 @@ async function askRetire(m, st, ctx) {
   const b = st.bat[id];
   const v = await sheet(`
     <div class="text-center">
-      <p class="text-3xl">🫱</p>
-      <h3 class="mt-2 text-lg font-bold text-white">${esc(nameOf(id))} is on ${runs}</h3>
-      <p class="mt-1 text-xs text-slate-500 num">${b.r} (${b.b}) · ${b.f4}×4 · ${b.f6}×6</p>
+      <p class="text-3xl">${ICON.exit}</p>
+      <h3 class="mt-2 text-lg font-bold text-fg">${esc(nameOf(id))} is on ${runs}</h3>
+      <p class="mt-1 text-xs text-muted num">${b.r} (${b.b}), ${b.f4}×4, ${b.f6}×6</p>
     </div>
-    <p class="mt-4 rounded-xl bg-white/[.05] border border-white/10 px-3 py-2.5 text-[11px] text-slate-400 leading-snug">
+    <p class="mt-4 rounded-xl bg-plate border border-rule px-3 py-2.5 text-[11px] text-muted leading-snug">
       This match retires a batter on ${mark} so everyone gets a knock. They keep their runs
       and can come back in later if the side runs out of batters.</p>
     <div class="mt-5 grid grid-cols-2 gap-3">
@@ -451,17 +446,17 @@ async function askBatter(m, ctx) {
   if (!list.length) { busy = false; return; }
 
   const body = `
-    <h3 class="text-lg font-bold text-white">Next batter in</h3>
-    <p class="text-xs text-slate-500 mt-1">${st.wickets} down · ${st.runs}/${st.wickets} after ${st.oversText} overs</p>
+    <h3 class="text-lg font-bold text-fg">Next batter in</h3>
+    <p class="text-xs text-muted mt-1">${st.wickets} down, ${st.runs}/${st.wickets} after ${st.oversText} overs</p>
     <div class="mt-4 grid gap-1.5 max-h-[46vh] overflow-y-auto no-scrollbar">
       ${list.map((id, i) => {
         const b = st.bat[id];
-        return `<button data-pickbat="${id}" class="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-left hover:bg-white/10 active:scale-[.98] transition">
-          <span class="w-5 text-center text-[11px] font-bold num text-slate-600">${st.battingXI.indexOf(id) + 1}</span>
-          <span class="h-8 w-8 grid place-items-center rounded-full bg-white/8 text-[11px] font-bold text-slate-300">${esc(initials(nameOf(id)))}</span>
-          <span class="flex-1 min-w-0 text-sm font-semibold text-white truncate">${esc(nameOf(id))}</span>
-          ${b?.out ? '<span class="pill bg-sky-500/15 text-sky-300">second knock</span>'
-            : b?.retired ? '<span class="pill bg-amber-500/15 text-amber-300">resuming</span>' : ''}
+        return `<button data-pickbat="${id}" class="flex items-center gap-3 rounded-xl bg-plate border border-rule px-3 py-2.5 text-left hover:bg-fill active:scale-[.98] transition">
+          <span class="w-5 text-center text-[11px] font-bold num text-faint">${st.battingXI.indexOf(id) + 1}</span>
+          <span class="h-8 w-8 grid place-items-center rounded-full bg-plate text-[11px] font-bold text-fg">${esc(initials(nameOf(id)))}</span>
+          <span class="flex-1 min-w-0 text-sm font-semibold text-fg truncate">${esc(nameOf(id))}</span>
+          ${b?.out ? '<span class="pill bg-boundary/15 text-boundary">second knock</span>'
+            : b?.retired ? '<span class="pill bg-boundary/15 text-boundary">resuming</span>' : ''}
         </button>`;
       }).join('')}
     </div>
@@ -493,15 +488,15 @@ async function askBowler(m, ctx, midOver = false) {
     const why = quotaOut ? 'quota done' : consecutive ? 'bowled last over' : '';
     return `<button data-pickbowl="${id}" ${off ? 'disabled' : ''}
       class="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${off
-        ? 'bg-white/[.02] border-white/5 opacity-40 cursor-not-allowed'
-        : 'bg-white/5 border-white/10 hover:bg-white/10 active:scale-[.98]'}">
-      <span class="h-8 w-8 grid place-items-center rounded-full bg-rose-500/15 text-[11px] font-bold text-rose-300">${esc(initials(nameOf(id)))}</span>
+        ? 'bg-plate border-rule opacity-40 cursor-not-allowed'
+        : 'bg-plate border-rule hover:bg-fill active:scale-[.98]'}">
+      <span class="h-8 w-8 grid place-items-center rounded-full bg-wicket/15 text-[11px] font-bold text-wicket">${esc(initials(nameOf(id)))}</span>
       <span class="flex-1 min-w-0">
-        <span class="block text-sm font-semibold text-white truncate">${esc(nameOf(id))}</span>
-        <span class="block text-[10px] text-slate-500 num">${w ? `${oversOf(w.balls)}-${w.maidens}-${w.runs}-${w.wkts}` : 'yet to bowl'}${why ? ' · ' + why : ''}</span>
+        <span class="block text-sm font-semibold text-fg truncate">${esc(nameOf(id))}</span>
+        <span class="block text-[10px] text-muted num">${w ? `${oversOf(w.balls)}-${w.maidens}-${w.runs}-${w.wkts}` : 'yet to bowl'}${why ? ', ' + why : ''}</span>
       </span>
-      ${mustBowl.has(id) && !off ? '<span class="pill bg-amber-500/15 text-amber-300">yet to bowl</span>' : ''}
-      ${w && w.balls ? `<span class="num text-[11px] font-bold text-slate-400">${fixed((w.runs * 6) / w.balls)}</span>` : ''}
+      ${mustBowl.has(id) && !off ? '<span class="pill bg-boundary/15 text-boundary">yet to bowl</span>' : ''}
+      ${w && w.balls ? `<span class="num text-[11px] font-bold text-muted">${fixed((w.runs * 6) / w.balls)}</span>` : ''}
     </button>`;
   };
 
@@ -518,10 +513,10 @@ async function askBowler(m, ctx, midOver = false) {
     : null;
 
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white">${midOver ? 'Change bowler' : `Bowler for over ${Math.floor(st.balls / 6) + 1}`}</h3>
-    ${nudge ? `<p class="mt-2 rounded-lg ${st.yetToBowl.length >= st.oversLeft ? 'bg-rose-500/12 border-rose-500/25 text-rose-200' : 'bg-white/[.05] border-white/10 text-slate-400'} border px-3 py-2 text-[11px] leading-snug">${esc(nudge)}</p>` : ''}
-    <p class="text-xs text-slate-500 mt-1">Max ${st.maxOversPerBowler} over${st.maxOversPerBowler === 1 ? '' : 's'} each${midOver ? '' : ' · the previous over’s bowler cannot continue'}</p>
-    ${relaxed ? `<p class="mt-2 rounded-lg bg-amber-500/12 border border-amber-500/25 px-3 py-2 text-[11px] text-amber-200 leading-snug">${esc(relaxed)}</p>` : ''}
+    <h3 class="text-lg font-bold text-fg">${midOver ? 'Change bowler' : `Bowler for over ${Math.floor(st.balls / 6) + 1}`}</h3>
+    ${nudge ? `<p class="mt-2 rounded-lg ${st.yetToBowl.length >= st.oversLeft ? 'bg-wicket/10 border-wicket/25 text-wicket' : 'bg-plate border-rule text-muted'} border px-3 py-2 text-[11px] leading-snug">${esc(nudge)}</p>` : ''}
+    <p class="text-xs text-muted mt-1">Max ${st.maxOversPerBowler} over${st.maxOversPerBowler === 1 ? '' : 's'} each${midOver ? '' : ', the previous over’s bowler cannot continue'}</p>
+    ${relaxed ? `<p class="mt-2 rounded-lg bg-boundary/10 border border-boundary/25 px-3 py-2 text-[11px] text-boundary leading-snug">${esc(relaxed)}</p>` : ''}
     <div class="mt-4 grid gap-1.5 max-h-[46vh] overflow-y-auto no-scrollbar">${
       [...xi].sort((a, b) => (mustBowl.has(b) ? 1 : 0) - (mustBowl.has(a) ? 1 : 0)).map(row).join('')}</div>
     ${midOver ? '' : `<button class="btn-ghost w-full mt-3 text-xs" data-close="undo">${ICON.undo} Undo the last ball instead</button>`}`, { grab: false });
@@ -543,10 +538,10 @@ async function wicketFlow(m, ctx) {
     : forMatch;
 
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white">How were they out?</h3>
-    ${st.freeHit ? '<p class="text-xs text-amber-300 mt-1">Free hit — only a run out (or obstruction) counts</p>' : ''}
+    <h3 class="text-lg font-bold text-fg">How were they out?</h3>
+    ${st.freeHit ? '<p class="text-xs text-boundary mt-1">Free hit — only a run out (or obstruction) counts</p>' : ''}
     <div class="mt-4 grid grid-cols-2 gap-2">
-      ${allowed.map(x => `<button data-out="${x.code}" class="rounded-xl bg-white/5 border border-white/10 px-3 py-3 text-xs font-bold text-slate-200 hover:bg-rose-500/15 hover:border-rose-500/30 active:scale-95 transition">${esc(x.label)}</button>`).join('')}
+      ${allowed.map(x => `<button data-out="${x.code}" class="rounded-xl bg-plate border border-rule px-3 py-3 text-xs font-bold text-fg hover:bg-wicket/15 hover:border-wicket/30 active:scale-95 transition">${esc(x.label)}</button>`).join('')}
     </div>
     <button class="btn-ghost w-full mt-4" data-close="__dismiss">Cancel</button>`, { grab: false });
 
@@ -558,13 +553,13 @@ async function wicketFlow(m, ctx) {
   let batter = st.striker;
   if (!d.strikerOnly && st.nonStriker) {
     const w = await sheet(`
-      <h3 class="text-lg font-bold text-white">Which batter is out?</h3>
+      <h3 class="text-lg font-bold text-fg">Which batter is out?</h3>
       <div class="mt-4 grid gap-2">
         ${[st.striker, st.nonStriker].filter(Boolean).map(id => `<button data-who="${id}"
-          class="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3 py-3 text-left hover:bg-white/10 active:scale-[.98] transition">
-          <span class="h-8 w-8 grid place-items-center rounded-full bg-white/8 text-[11px] font-bold text-slate-300">${esc(initials(nameOf(id)))}</span>
-          <span class="flex-1 text-sm font-semibold text-white">${esc(nameOf(id))}</span>
-          <span class="text-[10px] text-slate-500">${id === st.striker ? 'on strike' : 'non-striker'}</span></button>`).join('')}
+          class="flex items-center gap-3 rounded-xl bg-plate border border-rule px-3 py-3 text-left hover:bg-fill active:scale-[.98] transition">
+          <span class="h-8 w-8 grid place-items-center rounded-full bg-plate text-[11px] font-bold text-fg">${esc(initials(nameOf(id)))}</span>
+          <span class="flex-1 text-sm font-semibold text-fg">${esc(nameOf(id))}</span>
+          <span class="text-[10px] text-muted">${id === st.striker ? 'on strike' : 'non-striker'}</span></button>`).join('')}
       </div>`, { grab: false });
     if (!w || !w.startsWith('who:')) { busy = false; ctx.render(); return; }
     batter = w.slice(4);
@@ -574,12 +569,12 @@ async function wicketFlow(m, ctx) {
   let fielder = null;
   if (d.fielder) {
     const f = await sheet(`
-      <h3 class="text-lg font-bold text-white">${type === 'stumped' ? 'Stumped by' : type === 'runout' ? 'Run out by' : 'Caught by'}</h3>
+      <h3 class="text-lg font-bold text-fg">${type === 'stumped' ? 'Stumped by' : type === 'runout' ? 'Run out by' : 'Caught by'}</h3>
       <div class="mt-4 grid gap-1.5 max-h-[50vh] overflow-y-auto no-scrollbar">
-        ${st.bowlingXI.map(id => `<button data-field="${id}" class="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-left hover:bg-white/10 active:scale-[.98] transition">
-          <span class="h-8 w-8 grid place-items-center rounded-full bg-white/8 text-[11px] font-bold text-slate-300">${esc(initials(nameOf(id)))}</span>
-          <span class="flex-1 text-sm font-semibold text-white truncate">${esc(nameOf(id))}</span>
-          ${id === st.bowler ? '<span class="text-[10px] text-slate-500">bowler</span>' : ''}</button>`).join('')}
+        ${st.bowlingXI.map(id => `<button data-field="${id}" class="flex items-center gap-3 rounded-xl bg-plate border border-rule px-3 py-2.5 text-left hover:bg-fill active:scale-[.98] transition">
+          <span class="h-8 w-8 grid place-items-center rounded-full bg-plate text-[11px] font-bold text-fg">${esc(initials(nameOf(id)))}</span>
+          <span class="flex-1 text-sm font-semibold text-fg truncate">${esc(nameOf(id))}</span>
+          ${id === st.bowler ? '<span class="text-[10px] text-muted">bowler</span>' : ''}</button>`).join('')}
       </div>
       <button class="btn-ghost w-full mt-3" data-field="">Not recorded</button>`, { grab: false });
     if (f && f.startsWith('field:')) fielder = f.slice(6) || null;
@@ -587,15 +582,15 @@ async function wicketFlow(m, ctx) {
 
   // runs completed / extras on the same ball
   const r = await sheet(`
-    <h3 class="text-lg font-bold text-white">Runs on that ball</h3>
-    <p class="text-xs text-slate-500 mt-1">Runs completed before the dismissal. Usually 0.</p>
+    <h3 class="text-lg font-bold text-fg">Runs on that ball</h3>
+    <p class="text-xs text-muted mt-1">Runs completed before the dismissal. Usually 0.</p>
     <div class="grid grid-cols-4 gap-2 mt-4">
-      ${[0, 1, 2, 3].map(n => `<button data-wr="${n}" class="runbtn h-14 text-xl bg-white/8 text-white border-white/15">${n}</button>`).join('')}
+      ${[0, 1, 2, 3].map(n => `<button data-wr="${n}" class="runbtn h-14 text-xl bg-plate text-fg border-rule">${n}</button>`).join('')}
     </div>
     <div class="grid grid-cols-3 gap-2 mt-2">
-      <button data-wr="nb0" class="runbtn h-12 text-xs bg-orange-500/15 text-orange-300 border-orange-500/30">No ball</button>
-      <button data-wr="wd0" class="runbtn h-12 text-xs bg-amber-500/15 text-amber-300 border-amber-500/30">Wide</button>
-      <button data-wr="b1" class="runbtn h-12 text-xs bg-teal-500/15 text-teal-300 border-teal-500/30">1 bye</button>
+      <button data-wr="nb0" class="runbtn h-12 text-xs bg-boundary/15 text-boundary border-boundary/30">No ball</button>
+      <button data-wr="wd0" class="runbtn h-12 text-xs bg-boundary/15 text-boundary border-boundary/30">Wide</button>
+      <button data-wr="b1" class="runbtn h-12 text-xs bg-plate text-muted border-rule">1 bye</button>
     </div>`, { grab: false });
 
   busy = false;
@@ -614,11 +609,11 @@ async function wicketFlow(m, ctx) {
 async function bigRuns(m, ctx) {
   busy = true;
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white">More than six off one ball</h3>
-    <p class="text-xs text-slate-500 mt-1">Overthrows, or an all-run boundary with extras.
-      ${armed ? `The <b class="text-amber-300">${armed === 'wd' ? 'wide' : armed === 'nb' ? 'no ball' : armed === 'b' ? 'bye' : 'leg bye'}</b> you armed still applies.` : ''}</p>
+    <h3 class="text-lg font-bold text-fg">More than six off one ball</h3>
+    <p class="text-xs text-muted mt-1">Overthrows, or an all-run boundary with extras.
+      ${armed ? `The <b class="text-boundary">${armed === 'wd' ? 'wide' : armed === 'nb' ? 'no ball' : armed === 'b' ? 'bye' : 'leg bye'}</b> you armed still applies.` : ''}</p>
     <div class="grid grid-cols-4 gap-2 mt-4">
-      ${[7, 8, 9, 10].map(n => `<button data-big="${n}" class="runbtn h-16 text-2xl bg-white/10 text-white border-white/15">${n}</button>`).join('')}
+      ${[7, 8, 9, 10].map(n => `<button data-big="${n}" class="runbtn h-16 text-2xl bg-fill text-fg border-rule">${n}</button>`).join('')}
     </div>
     <button class="btn-ghost w-full mt-4" data-close="__dismiss">Cancel</button>`, { grab: false });
   busy = false;
@@ -634,27 +629,27 @@ async function inningsBreak(m, ctx) {
 
   await sheet(`
     <div class="text-center">
-      <p class="text-3xl">🍵</p>
-      <h3 class="mt-2 text-xl font-extrabold text-white">Innings break</h3>
-      <p class="mt-1 text-sm text-slate-400">${esc(teamName(first.battingTeamId))} made
-        <b class="text-white">${first.runs}/${first.wickets}</b> in ${first.oversText} overs</p>
+      <p class="text-3xl">${ICON.pause}</p>
+      <h3 class="mt-2 text-xl font-extrabold text-fg">Innings break</h3>
+      <p class="mt-1 text-sm text-muted">${esc(teamName(first.battingTeamId))} made
+        <b class="text-fg">${first.runs}/${first.wickets}</b> in ${first.oversText} overs</p>
     </div>
     <div class="mt-5 grid grid-cols-2 gap-3">
-      <div class="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
-        <p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Top scorer</p>
-        <p class="mt-1 text-sm font-bold text-white truncate">${top ? esc(shortName(nameOf(top.id))) : '—'}</p>
-        <p class="num text-[11px] text-slate-400">${top ? `${top.r} (${top.b})` : ''}</p></div>
-      <div class="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
-        <p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Best bowler</p>
-        <p class="mt-1 text-sm font-bold text-white truncate">${best ? esc(shortName(nameOf(best.id))) : '—'}</p>
-        <p class="num text-[11px] text-slate-400">${best ? `${best.wkts}/${best.runs}` : ''}</p></div>
+      <div class="rounded-xl bg-plate border border-rule p-3 text-center">
+        <p class="text-[10px] text-muted font-semibold">Top scorer</p>
+        <p class="mt-1 text-sm font-bold text-fg truncate">${top ? esc(shortName(nameOf(top.id))) : '—'}</p>
+        <p class="num text-[11px] text-muted">${top ? `${top.r} (${top.b})` : ''}</p></div>
+      <div class="rounded-xl bg-plate border border-rule p-3 text-center">
+        <p class="text-[10px] text-muted font-semibold">Best bowler</p>
+        <p class="mt-1 text-sm font-bold text-fg truncate">${best ? esc(shortName(nameOf(best.id))) : '—'}</p>
+        <p class="num text-[11px] text-muted">${best ? `${best.wkts}/${best.runs}` : ''}</p></div>
     </div>
-    <div class="mt-5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 p-4 text-center">
-      <p class="text-[11px] uppercase tracking-wider text-emerald-400 font-bold">Target</p>
-      <p class="num text-3xl font-black text-white mt-0.5">${first.runs + 1}</p>
-      <p class="text-[11px] text-slate-400">${esc(teamName(first.bowlingTeamId))} need ${first.runs + 1} from ${m.innings[1].overs * 6} balls</p>
+    <div class="mt-5 rounded-xl bg-action/10 border border-action p-4 text-center">
+      <p class="text-[11px] text-fg font-semibold">Target</p>
+      <p class="num text-3xl font-black text-fg mt-0.5">${first.runs + 1}</p>
+      <p class="text-[11px] text-muted">${esc(teamName(first.bowlingTeamId))} need ${first.runs + 1} from ${m.innings[1].overs * 6} balls</p>
     </div>
-    <button class="btn-primary w-full mt-5 !py-3.5" data-close="go">Start the chase 🏏</button>`, { grab: false });
+    <button class="btn-primary w-full mt-5 !py-3.5" data-close="go">Start the chase ${ICON.ball}</button>`, { grab: false });
 
   busy = false;
   ctx.render();
@@ -670,7 +665,7 @@ async function superOverResult(m, ctx) {
   const parent = store.match(m.parentMatchId);
   const states = m.innings.map((_, i) => E.computeInnings(m, i));
   const winner = m.result?.winnerId || null;
-  const line = states.map(s => `${teamName(s.battingTeamId)} ${s.runs}/${s.wickets}`).join('  ·  ');
+  const line = states.map(s => `${teamName(s.battingTeamId)} ${s.runs}/${s.wickets}`).join(', ');
 
   if (winner && parent) {
     E.setTieBreak(parent, winner, m.superOverNumber > 1 ? `Super Over ${m.superOverNumber}` : 'Super Over');
@@ -680,15 +675,15 @@ async function superOverResult(m, ctx) {
 
   const v = await sheet(`
     <div class="text-center">
-      <p class="text-4xl animate-pop">${winner ? '🏏' : '🤝'}</p>
-      <h3 class="mt-2 text-xl font-extrabold text-white leading-snug">
+      <p class="text-4xl animate-pop">${winner ? ICON.ball : ICON.equals}</p>
+      <h3 class="mt-2 text-xl font-extrabold text-fg leading-snug">
         ${winner ? `${esc(teamName(winner))} won the Super Over` : 'The Super Over is tied too'}</h3>
-      <p class="mt-1 text-xs text-slate-500 num">${esc(line)}</p>
+      <p class="mt-1 text-xs text-muted num">${esc(line)}</p>
     </div>
-    ${winner && parent ? `<p class="mt-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-3 py-2.5 text-[11px] text-emerald-200 leading-snug">
+    ${winner && parent ? `<p class="mt-4 rounded-xl bg-action/10 border border-action px-3 py-2.5 text-[11px] text-fg leading-snug">
         Recorded against ${esc(teamName(parent.teams[0]))} v ${esc(teamName(parent.teams[1]))}.
         The match itself stays a tie, so league points are unaffected — but a knockout bracket now moves on.</p>`
-      : `<p class="mt-4 rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-2.5 text-[11px] text-amber-200 leading-snug">
+      : `<p class="mt-4 rounded-xl bg-boundary/10 border border-boundary/25 px-3 py-2.5 text-[11px] text-boundary leading-snug">
         Still nothing between them. Play another Super Over, or go back and record the winner another way.</p>`}
     <div class="grid ${winner ? 'grid-cols-1' : 'grid-cols-2'} gap-3 mt-5">
       ${winner ? '' : '<button class="btn-ghost" data-close="another">Another Super Over</button>'}
@@ -710,27 +705,27 @@ async function resultSheet(m, ctx) {
 
   const v = await sheet(`
     <div class="text-center">
-      <p class="text-4xl animate-pop">${m.result?.tie ? '🤝' : '🏆'}</p>
-      <h3 class="mt-2 text-xl font-extrabold text-white leading-snug">${esc(text)}</h3>
-      <p class="mt-1 text-xs text-slate-500">${states.map(s => `${teamName(s.battingTeamId)} ${s.runs}/${s.wickets} (${s.oversText})`).join(' · ')}</p>
+      <p class="text-4xl animate-pop">${m.result?.tie ? ICON.equals : ICON.trophy}</p>
+      <h3 class="mt-2 text-xl font-extrabold text-fg leading-snug">${esc(text)}</h3>
+      <p class="mt-1 text-xs text-muted">${states.map(s => `${teamName(s.battingTeamId)} ${s.runs}/${s.wickets} (${s.oversText})`).join(', ')}</p>
     </div>
     ${tied ? `
-      <div class="mt-5 rounded-xl bg-amber-500/10 border border-amber-500/25 p-3">
-        <p class="text-[11px] font-bold uppercase tracking-wider text-amber-300">Scores level</p>
-        <p class="mt-1 text-[11px] text-slate-400 leading-snug">The match is a tie. If it was settled with a Super Over
+      <div class="mt-5 rounded-xl bg-boundary/10 border border-boundary/25 p-3">
+        <p class="text-[11px] font-semibold text-boundary">Scores level</p>
+        <p class="mt-1 text-[11px] text-muted leading-snug">The match is a tie. If it was settled with a Super Over
           or a bowl-out, record who went through — a knockout bracket needs it.</p>
         <div class="mt-3 grid grid-cols-2 gap-2">
-          ${m.teams.map(tid => `<button data-tiewin="${tid}" class="rounded-xl bg-white/5 border border-white/10 px-2 py-2.5 text-center hover:bg-amber-500/15 hover:border-amber-500/35 active:scale-95 transition">
-            <span class="block text-[11px] font-bold text-white truncate">${esc(teamName(tid))}</span>
-            <span class="block text-[9px] text-slate-500">went through</span></button>`).join('')}
+          ${m.teams.map(tid => `<button data-tiewin="${tid}" class="rounded-xl bg-plate border border-rule px-2 py-2.5 text-center hover:bg-boundary/15 hover:border-boundary/35 active:scale-95 transition">
+            <span class="block text-[11px] font-bold text-fg truncate">${esc(teamName(tid))}</span>
+            <span class="block text-[9px] text-muted">went through</span></button>`).join('')}
         </div>
       </div>` : ''}
     <p class="label mt-6">Player of the match</p>
     <div class="grid gap-1.5 max-h-56 overflow-y-auto no-scrollbar">
-      ${cands.map(c => `<button data-motm="${c.id}" class="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-left hover:bg-amber-500/10 hover:border-amber-500/30 active:scale-[.98] transition">
-        <span class="h-8 w-8 grid place-items-center rounded-full bg-amber-500/15 text-[11px] font-bold text-amber-300">${esc(initials(nameOf(c.id)))}</span>
-        <span class="flex-1 text-sm font-semibold text-white truncate">${esc(nameOf(c.id))}</span>
-        <span class="text-[10px] text-slate-500">${esc(motmLine(states, c.id))}</span></button>`).join('')}
+      ${cands.map(c => `<button data-motm="${c.id}" class="flex items-center gap-3 rounded-xl bg-plate border border-rule px-3 py-2.5 text-left hover:bg-boundary/10 hover:border-boundary/30 active:scale-[.98] transition">
+        <span class="h-8 w-8 grid place-items-center rounded-full bg-boundary/15 text-[11px] font-bold text-boundary">${esc(initials(nameOf(c.id)))}</span>
+        <span class="flex-1 text-sm font-semibold text-fg truncate">${esc(nameOf(c.id))}</span>
+        <span class="text-[10px] text-muted">${esc(motmLine(states, c.id))}</span></button>`).join('')}
     </div>
     <div class="grid grid-cols-2 gap-3 mt-5">
       <button class="btn-ghost" data-close="skip">Skip</button>
@@ -762,7 +757,7 @@ function motmLine(states, id) {
     const w = s.bowl[id];
     if (w && w.balls) parts.push(`${w.wkts}/${w.runs}`);
   }
-  return parts.join(' · ') || '—';
+  return parts.join(', ') || '—';
 }
 
 /* ------------------------------------------------------------------ *
@@ -771,25 +766,25 @@ function motmLine(states, id) {
 
 async function moreMenu(m, ctx) {
   const st = E.computeInnings(m, m.innings.length - 1);
-  const item = (act, icon, label, sub, tone = 'text-white') => `
-    <button data-menu="${act}" class="w-full flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3.5 py-3 text-left hover:bg-white/10 active:scale-[.99] transition">
+  const item = (act, icon, label, sub, tone = 'text-fg') => `
+    <button data-menu="${act}" class="w-full flex items-center gap-3 rounded-xl bg-plate border border-rule px-3.5 py-3 text-left hover:bg-fill active:scale-[.99] transition">
       <span class="text-lg w-6 text-center">${icon}</span>
       <span class="flex-1 min-w-0"><span class="block text-sm font-semibold ${tone}">${esc(label)}</span>
-      <span class="block text-[11px] text-slate-500">${esc(sub)}</span></span></button>`;
+      <span class="block text-[11px] text-muted">${esc(sub)}</span></span></button>`;
 
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white mb-4">Match options</h3>
+    <h3 class="text-lg font-bold text-fg mb-4">Match options</h3>
     <div class="grid gap-2">
-      ${item('golive', '📡', live.hosting() && live.host.matchId === m.id
-          ? `Live scoreboard · ${live.viewerCount()} watching`
+      ${item('golive', ICON.antenna, live.hosting() && live.host.matchId === m.id
+          ? `Live scoreboard, ${live.viewerCount()} watching`
           : 'Live scoreboard', 'Show the score on nearby phones — no internet needed')}
-      ${m.status === 'live' ? item('bowler', '🎯', 'Change bowler', 'Injury or a mid-over switch') : ''}
-      ${m.status === 'live' ? item('retire', '🚑', 'Retire a batter', 'Hurt (can return) or retired out') : ''}
-      ${m.status === 'live' ? item('penalty', '⚖️', 'Penalty runs', 'Award 5 runs to the batting side') : ''}
-      ${m.status === 'live' ? item('endinn', '⏹️', 'End this innings', 'Declaration, rain or agreement') : ''}
-      ${item('card', '📋', 'Full scorecard', 'Batting, bowling, fall of wickets')}
-      ${item('share', '📤', 'Share the score', 'Copy a text summary')}
-      ${m.status === 'live' ? item('abandon', '🚫', 'Abandon the match', 'No result recorded', 'text-rose-300') : ''}
+      ${m.status === 'live' ? item('bowler', ICON.target, 'Change bowler', 'Injury or a mid-over switch') : ''}
+      ${m.status === 'live' ? item('retire', ICON.exit, 'Retire a batter', 'Hurt (can return) or retired out') : ''}
+      ${m.status === 'live' ? item('penalty', ICON.scales, 'Penalty runs', 'Award 5 runs to the batting side') : ''}
+      ${m.status === 'live' ? item('endinn', ICON.stop, 'End this innings', 'Declaration, rain or agreement') : ''}
+      ${item('card', ICON.card, 'Full scorecard', 'Batting, bowling, fall of wickets')}
+      ${item('share', ICON.share, 'Share the score', 'Copy a text summary')}
+      ${m.status === 'live' ? item('abandon', ICON.ban, 'Abandon the match', 'No result recorded', 'text-wicket') : ''}
     </div>`, { grab: false });
 
   if (!v || !v.startsWith('menu:')) return;
@@ -804,10 +799,10 @@ async function moreMenu(m, ctx) {
     const who = [st.striker, st.nonStriker].filter(Boolean);
     if (!who.length) return;
     const r = await sheet(`
-      <h3 class="text-lg font-bold text-white mb-4">Retire a batter</h3>
+      <h3 class="text-lg font-bold text-fg mb-4">Retire a batter</h3>
       <div class="grid gap-2">
-        ${who.map(id => `<div class="rounded-xl bg-white/5 border border-white/10 p-3">
-          <p class="text-sm font-semibold text-white mb-2">${esc(nameOf(id))}</p>
+        ${who.map(id => `<div class="rounded-xl bg-plate border border-rule p-3">
+          <p class="text-sm font-semibold text-fg mb-2">${esc(nameOf(id))}</p>
           <div class="grid grid-cols-2 gap-2">
             <button data-ret="${id}:hurt" class="btn-chip">Retired hurt</button>
             <button data-ret="${id}:out" class="btn-chip">Retired out</button>
@@ -857,8 +852,8 @@ async function liveMenu(m, ctx) {
   if (active) {
     const n = live.viewerCount();
     const v = await sheet(`
-      <h3 class="text-lg font-bold text-white">Live scoreboard</h3>
-      <p class="text-xs text-slate-500 mt-1">${n} phone${n === 1 ? '' : 's'} watching.</p>
+      <h3 class="text-lg font-bold text-fg">Live scoreboard</h3>
+      <p class="text-xs text-muted mt-1">${n} phone${n === 1 ? '' : 's'} watching.</p>
       <div class="mt-4 grid gap-2">
         <button class="btn-primary" data-close="add">＋ Add viewers</button>
         <button class="btn-danger" data-close="stop">Stop broadcasting</button>
@@ -881,24 +876,24 @@ async function joinStation(m, ctx, forceOffline = false) {
 
   busy = true;
   const p = sheet(`
-    <h3 class="text-lg font-bold text-white">Add viewers</h3>
-    <ol class="mt-2 space-y-1 text-[12px] text-slate-400 leading-snug list-decimal pl-4">
-      <li>On their phone: Home → <b class="text-slate-200">Watch a live match</b> → scan this code.</li>
-      <li>When they appear below, tap <b class="text-slate-200">Accept</b>. That is all —
+    <h3 class="text-lg font-bold text-fg">Add viewers</h3>
+    <ol class="mt-2 space-y-1 text-[12px] text-muted leading-snug list-decimal pl-4">
+      <li>On their phone: Home → <b class="text-fg">Watch a live match</b> → scan this code.</li>
+      <li>When they appear below, tap <b class="text-fg">Accept</b>. That is all —
         and after you close this, new requests appear right on the scoring screen.</li>
     </ol>
-    <div class="mt-3 rounded-2xl bg-pure p-2.5 grid place-items-center">
+    <div class="mt-3 rounded-xl bg-pure p-2.5 grid place-items-center">
       <canvas id="stQr" class="w-full max-w-[280px] aspect-square [image-rendering:pixelated]"></canvas>
     </div>
-    <button id="stAuto" class="mt-3 w-full flex items-center gap-3 rounded-xl bg-white/[.04] border border-white/10 px-3 py-2.5 text-left transition active:scale-[.99]">
-      <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-white">Auto-accept joins</span>
-      <span class="block text-[11px] text-slate-500">Anyone who scans starts watching straight away — no Accept needed</span></span>
-      <span id="stAutoKnob" class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors bg-white/15">
+    <button id="stAuto" class="mt-3 w-full flex items-center gap-3 rounded-xl bg-plate border border-rule px-3 py-2.5 text-left transition active:scale-[.99]">
+      <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-fg">Auto-accept joins</span>
+      <span class="block text-[11px] text-muted">Anyone who scans starts watching straight away — no Accept needed</span></span>
+      <span id="stAutoKnob" class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors bg-fill">
         <span class="block h-5 w-5 rounded-full bg-pure shadow transition-transform"></span></span>
     </button>
     <div id="stReqs" class="grid gap-2 mt-3"></div>
-    <p id="stStatus" class="mt-2 text-center text-[11px] font-semibold text-slate-400"></p>
-    <p id="stNote" class="mt-1 text-center text-[10px] text-slate-600">One QR for any number of viewers · the score itself never leaves the ground</p>
+    <p id="stStatus" class="mt-2 text-center text-[11px] font-semibold text-muted"></p>
+    <p id="stNote" class="mt-1 text-center text-[10px] text-faint">One QR for any number of viewers, the score itself never leaves the ground</p>
     <div class="mt-3 grid grid-cols-3 gap-2">
       <button id="stCopy" class="btn-ghost text-xs">Copy code</button>
       <button class="btn-ghost text-xs" data-close="offline">Offline mode</button>
@@ -917,8 +912,8 @@ async function joinStation(m, ctx, forceOffline = false) {
     const box = document.querySelector('#stReqs');
     if (!box) return;
     box.innerHTML = live.host.requests.map(r => `
-      <div class="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-3 py-2.5 animate-pop">
-        <span class="flex-1 text-[13px] font-semibold text-white">A viewer asks to join</span>
+      <div class="flex items-center gap-2 rounded-xl bg-action/10 border border-action px-3 py-2.5 animate-pop">
+        <span class="flex-1 text-[13px] font-semibold text-fg">A viewer asks to join</span>
         <button class="btn-primary !px-3 !py-1.5 text-xs" data-req="yes" data-reqid="${r.id}">Accept</button>
         <button class="btn-ghost !px-3 !py-1.5 text-xs" data-req="no" data-reqid="${r.id}">Ignore</button>
       </div>`).join('');
@@ -944,7 +939,7 @@ async function joinStation(m, ctx, forceOffline = false) {
     const knob = document.querySelector('#stAutoKnob');
     if (!knob) return;
     const on = !!owner.liveAutoAccept;
-    knob.className = `shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${on ? 'bg-emerald-500' : 'bg-white/15'}`;
+    knob.className = `shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${on ? 'bg-action' : 'bg-fill'}`;
     knob.firstElementChild.className = `block h-5 w-5 rounded-full bg-pure shadow transition-transform ${on ? 'translate-x-4' : ''}`;
   };
   document.querySelector('#stAuto')?.addEventListener('click', async () => {
@@ -965,7 +960,7 @@ async function joinStation(m, ctx, forceOffline = false) {
     if (c) { await renderQR(live.joinUrl(code), { canvas: c }); c.dataset.code = code; }
     live.host.autoAccept = !!owner.liveAutoAccept;
     paintAuto();
-    status(`${count()} · waiting for someone to scan…`);
+    status(`${count()}, waiting for someone to scan…`);
     renderReqs();                      // anyone who scanned while this was closed
     if (tour) {
       const el = document.querySelector('#stNote');
@@ -1001,19 +996,19 @@ async function cameraStation(m, ctx) {
   const seen = new Set();
 
   const p = sheet(`
-    <h3 class="text-lg font-bold text-white">Add viewers</h3>
-    <ol class="mt-2 space-y-1 text-[12px] text-slate-400 leading-snug list-decimal pl-4">
-      <li>On their phone: Home → <b class="text-slate-200">Watch a live match</b> → scan this code.</li>
-      <li>A <b class="text-slate-200">reply code</b> appears on their phone.</li>
-      <li>They hold that reply up to the camera below <b class="text-slate-200">until this says Connected</b> —
-        or they tap <b class="text-slate-200">Copy the code</b> and you paste it here.</li>
+    <h3 class="text-lg font-bold text-fg">Add viewers</h3>
+    <ol class="mt-2 space-y-1 text-[12px] text-muted leading-snug list-decimal pl-4">
+      <li>On their phone: Home → <b class="text-fg">Watch a live match</b> → scan this code.</li>
+      <li>A <b class="text-fg">reply code</b> appears on their phone.</li>
+      <li>They hold that reply up to the camera below <b class="text-fg">until this says Connected</b> —
+        or they tap <b class="text-fg">Copy the code</b> and you paste it here.</li>
     </ol>
-    <div class="mt-3 rounded-2xl bg-pure p-2.5 grid place-items-center">
+    <div class="mt-3 rounded-xl bg-pure p-2.5 grid place-items-center">
       <canvas id="stQr" class="w-full max-w-[280px] aspect-square [image-rendering:pixelated]"></canvas>
     </div>
     <div class="mt-3 rounded-xl overflow-hidden bg-black relative" style="height:170px">
       <video id="stVid" muted playsinline class="w-full h-full object-cover"></video>
-      <p id="stStatus" class="absolute inset-x-2 bottom-2 text-center text-[11px] font-semibold text-white drop-shadow"></p>
+      <p id="stStatus" class="absolute inset-x-2 bottom-2 text-center text-[11px] font-semibold text-fg drop-shadow"></p>
     </div>
     <input id="stReply" class="field mt-3 text-xs" placeholder="…or paste their reply code here (CSL1.…)" autocomplete="off" spellcheck="false">
     <div class="mt-3 grid grid-cols-2 gap-3">
@@ -1039,7 +1034,7 @@ async function cameraStation(m, ctx) {
     toast('Could not start the live scoreboard on this browser', 'error');
     closeSheet('__dismiss'); busy = false; return;
   }
-  status(`${count()} · waiting for a viewer to scan…`);
+  status(`${count()}, waiting for a viewer to scan…`);
   document.querySelector('#stCopy')?.addEventListener('click', async () => {
     toast(await copyText(live.joinUrl(currentCode)) ? 'Link copied — send it any way you like' : 'Could not copy', 'ok');
   });
@@ -1067,7 +1062,7 @@ async function cameraStation(m, ctx) {
       status(err.message || 'Could not connect — they can try again');
     }
     await freshQR();                     // rotate for the next viewer
-    status(`${count()} · next viewer can scan`);
+    status(`${count()}, next viewer can scan`);
   };
 
   (async () => {
@@ -1090,7 +1085,7 @@ async function cameraStation(m, ctx) {
 
 export function scoreSummaryText(m) {
   const states = m.innings.map((_, i) => E.computeInnings(m, i));
-  const lines = [`${teamName(m.teams[0])} v ${teamName(m.teams[1])}${m.venue ? ' · ' + m.venue : ''}`];
+  const lines = [`${teamName(m.teams[0])} v ${teamName(m.teams[1])}${m.venue ? ', ' + m.venue : ''}`];
   states.forEach(s => lines.push(`${teamName(s.battingTeamId)}  ${s.runs}/${s.wickets} (${s.oversText} ov)`));
   const r = E.resultText(m, states, teamName);
   if (r) lines.push(r);

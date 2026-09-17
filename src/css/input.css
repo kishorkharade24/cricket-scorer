@@ -2,213 +2,185 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Barlow, bundled so the app looks the same offline and on every phone.
+   Latin subset only — 4 faces, ~87 KB total. */
+@font-face {
+  font-family: 'Barlow'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('../fonts/barlow-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow'; font-style: normal; font-weight: 500; font-display: swap;
+  src: url('../fonts/barlow-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow'; font-style: normal; font-weight: 600; font-display: swap;
+  src: url('../fonts/barlow-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow Condensed'; font-style: normal; font-weight: 700; font-display: swap;
+  src: url('../fonts/barlow-condensed-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow Condensed'; font-style: normal; font-weight: 800; font-display: swap;
+  src: url('../fonts/barlow-condensed-800.woff2') format('woff2');
+}
+
 @layer base {
-  /* Dark is the default: this is a scoring app that lives outdoors and in
-     evening light. Light mode is a straight remap of the same tokens. */
+  /* Dark is the manual scoreboard at the ground: a dark green board, chalk-white
+     number plates, red only for a wicket. Light is the scorebook: cream paper,
+     ink, ruled lines, red ink for dismissals. Same tokens, two objects. */
   :root {
-    --vvh: 100vh;
-    --c-fg: 255 255 255;        /* overlays and strong text */
-    --c-on-accent: 5 8 15;      /* text sitting on an accent colour */
-    --c-bg-950: 5 8 15;
-    --c-bg-900: 10 16 28;
-    --c-bg-850: 15 23 42;
-    --c-bg-800: 20 29 51;
-    --c-t100: 241 245 249;
-    --c-t200: 226 232 240;
-    --c-t300: 203 213 225;
-    --c-t400: 148 163 184;
-    --c-t500: 100 116 139;
-    --c-t600: 71 85 105;
-    --c-t700: 51 65 85;
-    --c-t800: 30 41 59;
-    --c-t900: 15 23 42;
-    --c-glow-a: 16 185 129;
-    --c-glow-b: 56 189 248;
-    --c-glow-c: 139 92 246;
-    --c-glow-alpha: .16;
-    --c-scrim: 0 0 0;
-    --c-scrim-alpha: .70;
-    --c-chrome: 17 25 40;        /* the bars: a step up from the page */
-    --c-chrome-edge: 255 255 255;
-    --c-chrome-edge-alpha: .10;
+    --c-ground:   15 26 21;      /* the board */
+    --c-plate:    23 37 30;      /* a number plate on it */
+    --c-fill:     31 48 39;      /* a plate one step up */
+    --c-rule:     42 58 49;
+    --c-fg:      241 234 217;    /* chalk */
+    --c-muted:   181 176 158;
+    --c-faint:   122 119 107;
+    --c-wicket:  239 106 88;
+    --c-boundary:219 169 70;
+    --c-action:  241 234 217;    /* the action is a chalk plate, not a hue */
+    --c-onaction: 15 26 21;
+    --c-shadow:    0  0  0;
+    --c-scrim:     0  0  0;
+    --c-scrim-alpha: .62;
+    --c-chrome:   12 21 17;      /* the bars, a shade below the board */
   }
 
   html[data-theme='light'] {
-    --c-fg: 15 23 42;           /* overlays become faint grey washes */
-    --c-on-accent: 5 8 15;      /* dark text still reads best on emerald/amber */
-    --c-bg-950: 241 245 249;    /* page */
-    --c-bg-900: 255 255 255;    /* sheets, inputs */
-    --c-bg-850: 248 250 252;
-    --c-bg-800: 226 232 240;
-    --c-t100: 2 6 23;           /* the text ramp inverts */
-    --c-t200: 15 23 42;
-    --c-t300: 30 41 59;
-    --c-t400: 71 85 105;
-    --c-t500: 100 116 139;
-    --c-t600: 120 134 153;
-    --c-t700: 148 163 184;
-    --c-t800: 203 213 225;
-    --c-t900: 226 232 240;
-    --c-glow-alpha: .10;
-    --c-scrim: 15 23 42;
+    --c-ground:  244 238 224;    /* paper */
+    --c-plate:   252 249 241;
+    --c-fill:    237 230 213;
+    --c-rule:    214 204 182;    /* the ruled line */
+    --c-fg:       30  27  21;    /* ink */
+    --c-muted:    95  90  76;
+    --c-faint:   138 132 114;
+    --c-wicket:  179  39  26;    /* red ink */
+    --c-boundary:138  95  14;
+    --c-action:   30  27  21;    /* an ink plate */
+    --c-onaction:244 238 224;
+    --c-shadow:   30  27  21;
+    --c-scrim:    30  27  21;
     --c-scrim-alpha: .45;
-    --c-chrome: 255 255 255;
-    --c-chrome-edge: 15 23 42;
-    --c-chrome-edge-alpha: .12;
-  }
-  html { -webkit-text-size-adjust: 100%; }
-  /* One screen, three rows: bar, scrolling content, bar.
-     Sized with inset:0 rather than a viewport unit. In a home-screen app, dvh
-     and vh do not always agree with the height iOS actually gives the web view,
-     and the difference shows up as a strip of empty page under the bar.
-     inset:0 has no unit to disagree about — it is the viewport, exactly. */
-  .app-shell {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    --c-chrome:  252 249 241;
   }
 
-  /* The shell is taken out of flow, so html paints anything behind it. Match
-     the bar's colour rather than the page's: if any sliver of it is ever
-     visible below the navigation, it should read as part of the bar. */
-  html {
-    height: 100%;
-    /* Exactly the bars' colour, so any strip a device paints outside the web
-       view is indistinguishable from the bar above it. */
-    background-color: rgb(var(--c-chrome));
-  }
+  html { -webkit-text-size-adjust: 100%; height: 100%; background-color: rgb(var(--c-chrome)); }
+
+  /* One screen, three rows: bar, scrolling content, bar. Sized with inset:0
+     rather than a viewport unit — in a home-screen app dvh and vh do not always
+     agree with the height iOS actually gives the web view, and the difference
+     shows up as a strip of empty page under the bar. */
+  .app-shell { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
 
   body {
-    @apply bg-ink-950 text-slate-200 font-sans antialiased;
-    background-image:
-      radial-gradient(1100px 620px at 12% -10%, rgb(var(--c-glow-a) / var(--c-glow-alpha)), transparent 60%),
-      radial-gradient(900px 520px at 96% 4%, rgb(var(--c-glow-b) / var(--c-glow-alpha)), transparent 58%),
-      radial-gradient(800px 500px at 50% 108%, rgb(var(--c-glow-c) / var(--c-glow-alpha)), transparent 62%);
-    background-attachment: fixed;
+    @apply bg-ground text-fg font-sans antialiased;
     overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
     color-scheme: dark;
   }
   html[data-theme='light'] body { color-scheme: light; }
+
   ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-thumb { @apply bg-white/10 rounded-full; }
+  ::-webkit-scrollbar-thumb { @apply bg-rule rounded-full; }
   ::-webkit-scrollbar-track { background: transparent; }
   input, select, textarea { @apply outline-none; }
   button { -webkit-tap-highlight-color: transparent; }
+
+  /* Every figure that can change width sits on tabular numerals, so a score
+     never jitters as it counts up. */
   .num { font-variant-numeric: tabular-nums; }
+
+  /* Icons scale with the text they sit beside, so one set serves every size. */
+  .icon { width: 1.15em; height: 1.15em; display: inline-block; vertical-align: -.2em; flex-shrink: 0; }
+
+  /* Scores, overs and headings. The condensed face is the app's voice. */
+  .display { @apply font-display; font-variant-numeric: tabular-nums; letter-spacing: .005em; }
+
+  :focus-visible { outline: 2px solid rgb(var(--c-boundary)); outline-offset: 2px; border-radius: 4px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  }
 }
 
 @layer components {
-  .card { @apply rounded-2xl bg-white/[.045] border border-white/10 backdrop-blur-xl shadow-glow; }
+  /* A plate is opaque, like a real scoreboard plate. The old translucent wash
+     needed a second set of rules in light mode; this needs none. */
+  .card { @apply rounded-xl bg-plate border border-rule; }
+  .card-h { @apply card transition-colors duration-150 hover:bg-fill active:bg-fill; }
 
-  /* On a light page a translucent dark wash reads as a hole, not a raised card,
-     so the few surfaces that carry elevation get an explicit light treatment. */
-  html[data-theme='light'] .card,
-  html[data-theme='light'] .card-h { @apply bg-pure border-slate-900/[.08];
-    box-shadow: 0 1px 2px rgb(15 23 42 / .04), 0 10px 30px -18px rgb(15 23 42 / .25); }
-  html[data-theme='light'] .card-h:hover { @apply bg-pure border-slate-900/20; }
-  html[data-theme='light'] .field { @apply bg-pure border-slate-900/[.12]; }
-  html[data-theme='light'] .btn-ghost { @apply bg-pure border-slate-900/[.10]; }
-  html[data-theme='light'] .btn-ghost:hover { @apply bg-slate-900/[.04]; }
-  .card-h { @apply card transition-all duration-200 hover:bg-white/[.075] hover:border-white/20 active:scale-[.985]; }
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150 active:scale-95 disabled:opacity-35 disabled:pointer-events-none select-none; }
-  .btn-primary { @apply btn bg-emerald-500 text-onaccent hover:bg-emerald-400 shadow-lg shadow-emerald-500/20; }
-  .btn-ghost { @apply btn bg-white/5 text-slate-200 border border-white/10 hover:bg-white/10; }
-  .btn-danger { @apply btn bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25; }
-  .btn-chip { @apply btn rounded-full px-3 py-1.5 text-xs bg-white/5 border border-white/10 hover:bg-white/10; }
-  .field { @apply w-full rounded-xl bg-ink-900/80 border border-white/10 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-400/20 transition; }
-  .label { @apply block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5; }
-  .pill { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors duration-150 active:opacity-80 disabled:opacity-35 disabled:pointer-events-none select-none; }
+  .btn-primary { @apply btn bg-action text-onaction; }
+  .btn-ghost { @apply btn bg-plate text-fg border border-rule hover:bg-fill; }
+  .btn-danger { @apply btn bg-plate text-wicket border border-wicket/40 hover:bg-wicket/10; }
+  .btn-chip { @apply btn rounded-full px-3 py-1.5 text-xs bg-plate text-muted border border-rule hover:bg-fill; }
+  .btn-chip.on { @apply bg-action text-onaction border-action; }
+
+  .field { @apply w-full rounded-lg bg-plate border border-rule px-3.5 py-2.5 text-sm text-fg placeholder:text-faint focus:border-boundary transition-colors; }
+
+  /* Sentence case, in the secondary colour. No tracked-out capitals anywhere. */
+  .label { @apply block text-xs font-semibold text-muted mb-1.5; }
+  .section-label { @apply text-xs font-semibold text-muted; }
+
+  .pill { @apply inline-flex items-center gap-1.5 rounded-full border border-rule px-2.5 py-1 text-xs font-semibold text-muted; }
+  .pill-live { @apply pill border-wicket/40 text-wicket; }
+  .pill-boundary { @apply pill border-boundary/40 text-boundary; }
+
   .tbl { @apply w-full text-sm num; }
-  .tbl th { @apply text-[9px] uppercase tracking-wide text-slate-500 font-semibold text-right px-1.5 py-2 whitespace-nowrap; }
+  .tbl th { @apply text-xs text-muted font-semibold text-right px-1.5 py-2 whitespace-nowrap; }
   .tbl th:first-child { @apply text-left; }
-  .tbl td { @apply text-right px-1.5 py-2 text-[12px] border-t border-white/[.06]; }
+  .tbl td { @apply text-right px-1.5 py-2 text-[13px] border-t border-rule; }
   .tbl td:not(:first-child) { @apply whitespace-nowrap; }
   .tbl td:first-child { @apply text-left whitespace-normal; }
-  .tbl td:first-child { @apply text-left; }
-  .runbtn { @apply relative rounded-2xl font-bold num flex items-center justify-center transition-all duration-150 active:scale-90 border select-none; }
-  html[data-theme='light'] .nav-item.active { @apply text-emerald-600; }
-  /* The top and bottom bars are chrome, not page. They need to read as a
-     surface content passes *behind* — at the page colour they look like they
-     have come unstuck when a card scrolls under them. */
-  /* Opaque, not translucent. In the flex shell the content scrolls in its own
-     pane, so nothing ever passes behind these bars — the blur bought nothing
-     and the 93% let the page tint them, which meant they no longer matched the
-     colour painted behind the shell. Solid, and the two match exactly. */
+
+  .runbtn { @apply relative rounded-lg font-display font-extrabold flex items-center justify-center transition-colors duration-100 active:opacity-75 border select-none; }
+  .runbtn { font-variant-numeric: tabular-nums; }
+  .key { @apply runbtn bg-plate text-fg border-rule; }
+  .key-four { @apply runbtn bg-plate text-boundary border-boundary/45; }
+  .key-six { @apply runbtn bg-boundary text-onaction border-boundary; }
+  .key-out { @apply runbtn bg-wicket text-onaction border-wicket; }
+  .key-dot { @apply runbtn bg-plate text-faint border-rule; }
+
+  /* The bars are chrome, not page: opaque, one hairline, no blur. */
   .chrome { background-color: rgb(var(--c-chrome)); }
-  .chrome-top {
-    border-bottom: 1px solid rgb(var(--c-chrome-edge) / var(--c-chrome-edge-alpha));
-    box-shadow: 0 6px 20px -12px rgba(0, 0, 0, .65);
-  }
-  .chrome-bottom {
-    border-top: 1px solid rgb(var(--c-chrome-edge) / var(--c-chrome-edge-alpha));
-    box-shadow: 0 -8px 24px -12px rgba(0, 0, 0, .7);
-  }
-  html[data-theme='light'] .chrome-top { box-shadow: 0 6px 18px -14px rgba(15, 23, 42, .5); }
-  html[data-theme='light'] .chrome-bottom { box-shadow: 0 -8px 22px -14px rgba(15, 23, 42, .5); }
+  .chrome-top { border-bottom: 1px solid rgb(var(--c-rule)); }
+  .chrome-bottom { border-top: 1px solid rgb(var(--c-rule)); }
 
-  .nav-item { @apply flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-semibold text-slate-500 transition-colors hover:text-slate-300; }
-  .nav-item svg { @apply h-[19px] w-[19px]; }
-  .nav-item.active { @apply text-emerald-400; }
+  .nav-item { @apply flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-semibold text-muted transition-colors hover:text-fg; }
+  .nav-item svg { @apply h-5 w-5; }
+  .nav-item.active { @apply text-fg; }
+
+  /* The wash behind a sheet. Carries a lighter slate in the scorebook theme. */
+  .scrim { background-color: rgb(var(--c-scrim) / var(--c-scrim-alpha)); }
+
   .safe-b { padding-bottom: env(safe-area-inset-bottom, 0px); }
-
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-}
 
-@layer utilities {
-/* Accent text in light mode.
-   text-sky-300 and friends are chosen to sit on a dark surface; on a pale
-   tint they vanish. Each one is remapped to the readable shade of the same
-   hue. Generated — run scripts/gen-light-accents.mjs after adding a hue. */
-html[data-theme='light'] .text-emerald-100{color:#064e3b}
-html[data-theme='light'] .text-emerald-200{color:#065f46}
-html[data-theme='light'] .text-emerald-300{color:#047857}
-html[data-theme='light'] .text-emerald-400{color:#059669}
-html[data-theme='light'] .text-sky-100{color:#0c4a6e}
-html[data-theme='light'] .text-sky-200{color:#075985}
-html[data-theme='light'] .text-sky-300{color:#0369a1}
-html[data-theme='light'] .text-sky-400{color:#0284c7}
-html[data-theme='light'] .text-violet-100{color:#4c1d95}
-html[data-theme='light'] .text-violet-200{color:#5b21b6}
-html[data-theme='light'] .text-violet-300{color:#6d28d9}
-html[data-theme='light'] .text-violet-400{color:#7c3aed}
-html[data-theme='light'] .text-amber-100{color:#78350f}
-html[data-theme='light'] .text-amber-200{color:#92400e}
-html[data-theme='light'] .text-amber-300{color:#b45309}
-html[data-theme='light'] .text-amber-400{color:#d97706}
-html[data-theme='light'] .text-rose-100{color:#881337}
-html[data-theme='light'] .text-rose-200{color:#9f1239}
-html[data-theme='light'] .text-rose-300{color:#be123c}
-html[data-theme='light'] .text-rose-400{color:#e11d48}
-html[data-theme='light'] .text-teal-100{color:#134e4a}
-html[data-theme='light'] .text-teal-200{color:#115e59}
-html[data-theme='light'] .text-teal-300{color:#0f766e}
-html[data-theme='light'] .text-teal-400{color:#0d9488}
-html[data-theme='light'] .text-orange-100{color:#7c2d12}
-html[data-theme='light'] .text-orange-200{color:#9a3412}
-html[data-theme='light'] .text-orange-300{color:#c2410c}
-html[data-theme='light'] .text-orange-400{color:#ea580c}
-html[data-theme='light'] .text-fuchsia-100{color:#701a75}
-html[data-theme='light'] .text-fuchsia-200{color:#86198f}
-html[data-theme='light'] .text-fuchsia-300{color:#a21caf}
-html[data-theme='light'] .text-fuchsia-400{color:#c026d3}
-html[data-theme='light'] .text-lime-100{color:#365314}
-html[data-theme='light'] .text-lime-200{color:#3f6212}
-html[data-theme='light'] .text-lime-300{color:#4d7c0f}
-html[data-theme='light'] .text-lime-400{color:#65a30d}
-html[data-theme='light'] .text-cyan-100{color:#164e63}
-html[data-theme='light'] .text-cyan-200{color:#155e75}
-html[data-theme='light'] .text-cyan-300{color:#0e7490}
-html[data-theme='light'] .text-cyan-400{color:#0891b2}
-html[data-theme='light'] .text-indigo-100{color:#312e81}
-html[data-theme='light'] .text-indigo-200{color:#3730a3}
-html[data-theme='light'] .text-indigo-300{color:#4338ca}
-html[data-theme='light'] .text-indigo-400{color:#4f46e5}
-html[data-theme='light'] .text-pink-100{color:#831843}
-html[data-theme='light'] .text-pink-200{color:#9d174d}
-html[data-theme='light'] .text-pink-300{color:#be185d}
-html[data-theme='light'] .text-pink-400{color:#db2777}
+  /* ---- team colours ----------------------------------------------------
+     Eight club colours, each a single variable with a value per theme, so a
+     team mark is one class instead of five safelisted Tailwind shades. */
+  .tm { color: var(--tm); }
+  .tm-soft { background-color: color-mix(in srgb, var(--tm) 15%, transparent); }
+  .tm-edge { border-color: color-mix(in srgb, var(--tm) 42%, transparent); }
+  .tm-dot  { background-color: var(--tm); }
+
+  .tm-navy    { --tm: #8fb0dd; }
+  .tm-maroon  { --tm: #dc949f; }
+  .tm-bottle  { --tm: #74c79b; }
+  .tm-gold    { --tm: #dcb663; }
+  .tm-sky     { --tm: #86bde4; }
+  .tm-claret  { --tm: #dd97a7; }
+  .tm-saffron { --tm: #e3a765; }
+  .tm-steel   { --tm: #aebaC7; }
+
+  html[data-theme='light'] .tm-navy    { --tm: #2c4675; }
+  html[data-theme='light'] .tm-maroon  { --tm: #762936; }
+  html[data-theme='light'] .tm-bottle  { --tm: #2b6349; }
+  html[data-theme='light'] .tm-gold    { --tm: #7d560c; }
+  html[data-theme='light'] .tm-sky     { --tm: #295c7f; }
+  html[data-theme='light'] .tm-claret  { --tm: #853745; }
+  html[data-theme='light'] .tm-saffron { --tm: #8c5010; }
+  html[data-theme='light'] .tm-steel   { --tm: #434d59; }
 }

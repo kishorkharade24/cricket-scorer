@@ -39,14 +39,13 @@ function showUpdateBanner() {
   if (document.querySelector('#updateBar')) return;
   const bar = document.createElement('div');
   bar.id = 'updateBar';
-  bar.className = 'fixed inset-x-3 bottom-24 z-[95] flex items-center gap-3 rounded-2xl ' +
-    'bg-emerald-500 text-onaccent px-4 py-3 shadow-lift animate-slide-up mx-auto max-w-md';
+  bar.className = 'fixed inset-x-3 bottom-24 z-[95] flex items-center gap-3 rounded-xl ' +
+    'bg-action text-onaction px-4 py-3 shadow-lift animate-pop mx-auto max-w-md';
   bar.innerHTML = `
-    <span class="text-lg">✨</span>
     <span class="flex-1 text-sm font-bold leading-tight">A newer version is ready
       <span class="block text-[11px] font-semibold opacity-70">Finish the over first — nothing is lost.</span></span>
-    <button id="updateNow" class="rounded-lg bg-ink-950/85 text-white px-3 py-1.5 text-xs font-bold active:scale-95 transition">Reload</button>
-    <button id="updateLater" aria-label="Dismiss" class="text-onaccent/60 text-lg leading-none px-1">×</button>`;
+    <button id="updateNow" class="rounded bg-ground text-fg px-3 py-1.5 text-xs font-semibold active:opacity-80 transition-opacity">Reload</button>
+    <button id="updateLater" aria-label="Dismiss" class="text-onaction/70 text-lg leading-none px-1">\u00d7</button>`;
   document.body.appendChild(bar);
   bar.querySelector('#updateNow').addEventListener('click', () => location.reload());
   bar.querySelector('#updateLater').addEventListener('click', () => bar.remove());

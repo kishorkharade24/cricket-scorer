@@ -3,7 +3,7 @@
 
 import { esc, toast, initials, sortBy, sheet, closeSheet } from '../util.js';
 import * as store from '../store.js';
-import { badge, empty, teamName } from '../ui.js';
+import { badge, empty, teamName, ICON } from '../ui.js';
 import { newMatch, defaultMaxOversPerBowler } from '../engine.js';
 import { teamForm } from './teams.js';
 
@@ -53,17 +53,17 @@ export default {
 
     const teams = sortBy(store.teams(), 'name');
     if (teams.length < 2) {
-      return empty('👥', 'This route needs saved teams',
+      return empty(ICON.people, 'This route needs saved teams',
         'Set up two teams with squads, or skip all of it and start a quick match by typing names.',
         `<div class="flex flex-col gap-2 items-stretch">
-           <a href="#/match/quick" class="btn-primary">⚡ Quick match instead</a>
+           <a href="#/match/quick" class="btn-primary">${ICON.bat} Quick match instead</a>
            <a href="#/teams" class="btn-ghost">Set up teams</a>
          </div>`);
     }
 
     return `
       <div class="flex gap-1.5 mb-5">
-        ${[1, 2, 3].map(i => `<div class="h-1 flex-1 rounded-full transition-all duration-300 ${i <= d.step ? 'bg-emerald-400' : 'bg-white/10'}"></div>`).join('')}
+        ${[1, 2, 3].map(i => `<div class="h-1 flex-1 rounded-full transition-all duration-300 ${i <= d.step ? 'bg-action' : 'bg-fill'}"></div>`).join('')}
       </div>
       ${d.step === 1 ? step1(teams) : d.step === 2 ? step2() : step3()}`;
   },
@@ -99,7 +99,7 @@ export default {
       d.overs = v; d.maxOversPerBowler = null; rr();
     });
     root.querySelector('#pps')?.addEventListener('change', e => {
-      d.playersPerSide = Math.max(2, Math.min(15, +e.target.value || 11)); d.xi = {}; rr();
+      d.playersPerSide = Math.max(2, Math.min(15, +e.target.value || 11)); rr();
     });
     root.querySelector('#mopb')?.addEventListener('change', e => {
       d.maxOversPerBowler = Math.max(1, Math.min(d.overs, +e.target.value || 1));
@@ -170,7 +170,10 @@ export default {
         d.step = 3;
         for (const tid of [d.teamA, d.teamB]) {
           const squad = store.players(tid);
-          if (!d.xi[tid] && squad.length <= d.playersPerSide) d.xi[tid] = squad.map(p => p.id);
+          // Fill up to the nominal size from the batting order. Each side is
+          // filled the same way whatever its squad size, and any of it can be
+          // changed — the two sides never have to match.
+          if (!d.xi[tid]) d.xi[tid] = squad.slice(0, d.playersPerSide).map(p => p.id);
         }
       }
       rr();
@@ -186,19 +189,19 @@ function step1(teams) {
   const slot = (key, id) => {
     const label = key === 'A' ? 'Team A' : 'Team B';
     if (!id) {
-      return `<button data-slot="${key}" class="w-full flex items-center gap-3 rounded-xl border border-dashed border-white/15 px-3.5 py-3 text-left hover:border-emerald-400/40 transition active:scale-[.99]">
-        <span class="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-white/5 border border-white/10 text-slate-600">?</span>
-        <span class="flex-1"><span class="block text-[10px] uppercase tracking-wider text-slate-500 font-bold">${label}</span>
-        <span class="block text-sm font-semibold text-slate-400">Choose a team</span></span>
-        <span class="text-slate-600">›</span></button>`;
+      return `<button data-slot="${key}" class="w-full flex items-center gap-3 rounded-xl border border-dashed border-rule px-3.5 py-3 text-left hover:border-action transition active:scale-[.99]">
+        <span class="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-plate border border-rule text-faint">?</span>
+        <span class="flex-1"><span class="block text-[10px] text-muted font-semibold">${label}</span>
+        <span class="block text-sm font-semibold text-muted">Choose a team</span></span>
+        <span class="text-faint">${ICON.chevron}</span></button>`;
     }
     const n = store.players(id).length;
-    return `<button data-slot="${key}" class="w-full flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3.5 py-3 text-left hover:bg-white/10 transition active:scale-[.99]">
+    return `<button data-slot="${key}" class="w-full flex items-center gap-3 rounded-xl bg-plate border border-rule px-3.5 py-3 text-left hover:bg-fill transition active:scale-[.99]">
       ${badge(id)}
-      <span class="flex-1 min-w-0"><span class="block text-[10px] uppercase tracking-wider text-slate-500 font-bold">${label}</span>
-      <span class="block text-sm font-bold text-white truncate">${esc(teamName(id))}</span>
-      <span class="block text-[10px] ${n < 2 ? 'text-amber-400' : 'text-slate-500'}">${n} player${n === 1 ? '' : 's'}${n < 2 ? ' — add more first' : ''}</span></span>
-      <span class="text-slate-600">›</span></button>`;
+      <span class="flex-1 min-w-0"><span class="block text-[10px] text-muted font-semibold">${label}</span>
+      <span class="block text-sm font-bold text-fg truncate">${esc(teamName(id))}</span>
+      <span class="block text-[10px] ${n < 2 ? 'text-boundary' : 'text-muted'}">${n} player${n === 1 ? '' : 's'}${n < 2 ? ' — add more first' : ''}</span></span>
+      <span class="text-faint">${ICON.chevron}</span></button>`;
   };
 
   const mopb = d.maxOversPerBowler ?? defaultMaxOversPerBowler(d.overs);
@@ -208,28 +211,29 @@ function step1(teams) {
       <div class="space-y-2">
         ${slot('A', d.teamA)}
         <div class="flex items-center gap-3">
-          <div class="h-px flex-1 bg-white/8"></div>
-          <button data-act="swap" class="h-8 w-8 rounded-lg bg-white/5 border border-white/10 grid place-items-center text-[11px] font-bold text-slate-400 hover:text-emerald-300 active:rotate-180 transition-transform duration-300" aria-label="Swap the two teams">⇄</button>
-          <div class="h-px flex-1 bg-white/8"></div>
+          <div class="h-px flex-1 bg-plate"></div>
+          <button data-act="swap" class="h-8 w-8 rounded bg-plate border border-rule grid place-items-center text-muted hover:text-fg transition-colors" aria-label="Swap the two teams">${ICON.shuffle}</button>
+          <div class="h-px flex-1 bg-plate"></div>
         </div>
         ${slot('B', d.teamB)}
       </div>
-      <button data-act="newteam" class="mt-3 w-full rounded-xl border border-dashed border-white/15 py-2.5 text-xs font-semibold text-slate-400 hover:text-emerald-300 hover:border-emerald-400/40 transition">+ New team</button>
+      <button data-act="newteam" class="mt-3 w-full rounded-xl border border-dashed border-rule py-2.5 text-xs font-semibold text-muted hover:text-fg hover:border-action transition">+ New team</button>
     </div>
 
     <div class="card p-4 mt-4">
       <p class="label">Overs per innings</p>
       <div class="flex flex-wrap gap-2">
-        ${PRESETS.map(p => `<button data-overs="${p.overs}" class="btn-chip ${d.overs === p.overs ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${p.label}</button>`).join('')}
-        <input id="oversCustom" type="number" min="1" max="90" value="${d.overs}" class="w-16 rounded-full bg-white/5 border border-white/10 px-3 py-1.5 text-xs text-center num" aria-label="Custom overs">
+        ${PRESETS.map(p => `<button data-overs="${p.overs}" class="btn-chip ${d.overs === p.overs ? '!bg-action !text-onaction !border-action' : ''}">${p.label}</button>`).join('')}
+        <input id="oversCustom" type="number" min="1" max="90" value="${d.overs}" class="w-16 rounded-full bg-plate border border-rule px-3 py-1.5 text-xs text-center num" aria-label="Custom overs">
       </div>
       <div class="grid grid-cols-2 gap-3 mt-4">
-        <div><label class="label" for="pps">Players a side <span class="normal-case text-slate-600">(default)</span></label>
+        <div><label class="label" for="pps">Players a side</label>
           <input id="pps" type="number" min="2" max="15" value="${d.playersPerSide}" class="field num"></div>
         <div><label class="label" for="mopb">Max overs / bowler</label>
           <input id="mopb" type="number" min="1" max="${d.overs}" value="${mopb}" class="field num"></div>
       </div>
-      <label class="label mt-4" for="venue">Venue <span class="normal-case text-slate-600">(optional)</span></label>
+      <p class="mt-1.5 text-[11px] text-muted leading-snug">A starting point for both squads. Sides can differ, and you pick each one on the next step.</p>
+      <label class="label mt-4" for="venue">Venue <span class="font-normal text-faint">(optional)</span></label>
       <input id="venue" class="field" value="${esc(d.venue)}" placeholder="Ground name">
     </div>
 
@@ -239,7 +243,7 @@ function step1(teams) {
         ${toggle('freeHitOnNoBall', 'Free hit after a no ball', 'Only a run out can dismiss the batter on the next legal ball')}
         ${toggle('lastManStands', 'Last man stands', 'The final batter carries on alone instead of the innings ending')}
       </div>
-      <div class="mt-4 pt-4 border-t border-white/[.07]">
+      <div class="mt-4 pt-4 border-t border-rule">
         <p class="label">Turf &amp; gully rules</p>
         <div class="space-y-2">
           ${toggle('noLbw', 'No LBW', 'There is no umpire, so leave it out of the list')}
@@ -247,51 +251,51 @@ function step1(teams) {
           ${toggle('__extraBat', 'Short side bats one player twice', 'Their best batter gets a second knock')}
         </div>
         <p class="label mt-4">Fixed-run zones</p>
-        <p class="text-[11px] text-slate-500 leading-snug mb-2">Hit a marked part of the ground and it is worth a set number of runs.
+        <p class="text-[11px] text-muted leading-snug mb-2">Hit a marked part of the ground and it is worth a set number of runs.
           The batters do not run, so the same one keeps the strike.</p>
         <div class="grid gap-2">
           ${(d.rules.zones || []).map((z, i) => `<div class="flex items-center gap-2">
             <input data-zname="${i}" class="field !py-2 text-sm flex-1" value="${esc(z.label || '')}" placeholder="e.g. Side net" maxlength="18">
             <input data-zruns="${i}" type="number" min="1" max="12" value="${+z.runs || 1}" class="field !py-2 w-16 text-center num">
-            <button data-zdel="${i}" class="h-9 w-9 shrink-0 rounded-lg bg-white/5 border border-white/10 text-slate-500 hover:text-rose-300 grid place-items-center active:scale-90 transition">✕</button>
+            <button data-zdel="${i}" class="h-9 w-9 shrink-0 rounded-lg bg-plate border border-rule text-muted hover:text-wicket grid place-items-center transition-colors" aria-label="Remove zone">${ICON.close}</button>
           </div>`).join('')}
         </div>
-        <button data-zadd class="mt-2 w-full rounded-xl border border-dashed border-white/15 py-2.5 text-xs font-semibold text-slate-400 hover:text-emerald-300 hover:border-emerald-400/40 transition">
+        <button data-zadd class="mt-2 w-full rounded-xl border border-dashed border-rule py-2.5 text-xs font-semibold text-muted hover:text-fg hover:border-action transition">
           + Add a zone</button>
 
         <p class="label mt-4">Retire a batter on</p>
         <div class="flex flex-wrap gap-2">
-          ${[0, 25, 30, 50].map(n => `<button data-rule="__retire${n}" class="btn-chip ${d.rules.retireAt === n ? '!bg-emerald-500 !text-onaccent !border-emerald-400' : ''}">${n === 0 ? 'Off' : n}</button>`).join('')}
+          ${[0, 25, 30, 50].map(n => `<button data-rule="__retire${n}" class="btn-chip ${d.rules.retireAt === n ? '!bg-action !text-onaction !border-action' : ''}">${n === 0 ? 'Off' : n}</button>`).join('')}
         </div>
-        <p class="mt-2 text-[11px] text-slate-500 leading-snug">${d.rules.retireAt
+        <p class="mt-2 text-[11px] text-muted leading-snug">${d.rules.retireAt
           ? `You will be asked to retire a batter when they reach ${d.rules.retireAt}. They can come back later if the side runs short.`
           : 'Nobody is asked to retire.'}</p>
       </div>
 
       <div class="grid grid-cols-2 gap-3 mt-4">
         <div><p class="label">Runs for a wide</p>
-          <div class="flex gap-2">${[1, 2].map(n => `<button data-rule="__wide${n}" class="btn-chip flex-1 ${d.rules.widePenalty === n ? '!bg-emerald-500 !text-onaccent' : ''}">${n}</button>`).join('')}</div></div>
+          <div class="flex gap-2">${[1, 2].map(n => `<button data-rule="__wide${n}" class="btn-chip flex-1 ${d.rules.widePenalty === n ? '!bg-action !text-onaction' : ''}">${n}</button>`).join('')}</div></div>
         <div><p class="label">Runs for a no ball</p>
-          <div class="flex gap-2">${[1, 2].map(n => `<button data-rule="__nb${n}" class="btn-chip flex-1 ${d.rules.noBallPenalty === n ? '!bg-emerald-500 !text-onaccent' : ''}">${n}</button>`).join('')}</div></div>
+          <div class="flex gap-2">${[1, 2].map(n => `<button data-rule="__nb${n}" class="btn-chip flex-1 ${d.rules.noBallPenalty === n ? '!bg-action !text-onaction' : ''}">${n}</button>`).join('')}</div></div>
       </div>
     </div>
 
-    <button data-act="next" class="btn-primary w-full mt-5 !py-3.5">Continue to the toss →</button>`;
+    <button data-act="next" class="btn-primary w-full mt-5 !py-3.5">Continue to the toss</button>`;
 }
 
 async function pickTeam(label, current) {
   const teams = sortBy(store.teams(), 'name');
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white mb-4">${esc(label)}</h3>
+    <h3 class="text-lg font-bold text-fg mb-4">${esc(label)}</h3>
     <div class="grid gap-1.5 max-h-[60vh] overflow-y-auto no-scrollbar">
       ${teams.map(t => {
         const n = store.players(t.id).length;
         return `<button data-teamsel="${t.id}" class="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition active:scale-[.98] ${
-          t.id === current ? 'bg-emerald-500/15 border-emerald-500/40' : 'bg-white/5 border-white/10 hover:bg-white/10'}">
+          t.id === current ? 'bg-action/15 border-action' : 'bg-plate border-rule hover:bg-fill'}">
           ${badge(t.id, 'sm')}
-          <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-white truncate">${esc(t.name)}</span>
-          <span class="block text-[10px] ${n < 2 ? 'text-amber-400' : 'text-slate-500'}">${n} player${n === 1 ? '' : 's'}</span></span>
-          ${t.id === current ? '<span class="text-emerald-400">✓</span>' : ''}</button>`;
+          <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-fg truncate">${esc(t.name)}</span>
+          <span class="block text-[10px] ${n < 2 ? 'text-boundary' : 'text-muted'}">${n} player${n === 1 ? '' : 's'}</span></span>
+          ${t.id === current ? `<span class="text-fg">${ICON.check}</span>` : ''}</button>`;
       }).join('')}
     </div>`, { grab: false });
   return v && v.startsWith('team:') ? v.slice(5) : null;
@@ -299,23 +303,23 @@ async function pickTeam(label, current) {
 
 function toggle(key, title, sub) {
   const on = key === '__extraBat' ? !!d.rules.extraBats : !!d.rules[key];
-  return `<button data-rule="${key}" class="w-full flex items-center gap-3 rounded-xl bg-white/[.04] border border-white/10 px-3 py-2.5 text-left transition active:scale-[.99]">
+  return `<button data-rule="${key}" class="w-full flex items-center gap-3 rounded-xl bg-plate border border-rule px-3 py-2.5 text-left transition active:scale-[.99]">
     <span class="flex-1 min-w-0">
-      <span class="block text-sm font-semibold text-white">${esc(title)}</span>
-      <span class="block text-[11px] text-slate-500 leading-snug">${esc(sub)}</span></span>
-    <span class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${on ? 'bg-emerald-500' : 'bg-white/15'}">
+      <span class="block text-sm font-semibold text-fg">${esc(title)}</span>
+      <span class="block text-[11px] text-muted leading-snug">${esc(sub)}</span></span>
+    <span class="shrink-0 h-6 w-10 rounded-full p-0.5 transition-colors ${on ? 'bg-action' : 'bg-fill'}">
       <span class="block h-5 w-5 rounded-full bg-pure shadow transition-transform ${on ? 'translate-x-4' : ''}"></span></span>
   </button>`;
 }
 
 function step2() {
-  const opt = id => `<button data-toss="${id}" class="flex-1 rounded-2xl border p-4 text-center transition active:scale-95 ${
-    d.toss.winnerId === id ? 'bg-emerald-500/15 border-emerald-500/40' : 'bg-white/5 border-white/10'}">
+  const opt = id => `<button data-toss="${id}" class="flex-1 rounded-xl border p-4 text-center transition active:scale-95 ${
+    d.toss.winnerId === id ? 'bg-action/15 border-action' : 'bg-plate border-rule'}">
     <div class="flex justify-center mb-2">${badge(id, 'md')}</div>
-    <p class="text-sm font-bold text-white truncate">${esc(teamName(id))}</p></button>`;
+    <p class="text-sm font-bold text-fg truncate">${esc(teamName(id))}</p></button>`;
 
-  const dec = (v, label, icon) => `<button data-dec="${v}" class="flex-1 rounded-2xl border p-4 text-center transition active:scale-95 ${
-    d.toss.decision === v ? 'bg-emerald-500/15 border-emerald-500/40 text-white' : 'bg-white/5 border-white/10 text-slate-400'}">
+  const dec = (v, label, icon) => `<button data-dec="${v}" class="flex-1 rounded-xl border p-4 text-center transition active:scale-95 ${
+    d.toss.decision === v ? 'bg-action/15 border-action text-fg' : 'bg-plate border-rule text-muted'}">
     <div class="text-2xl">${icon}</div><p class="mt-1 text-sm font-bold">${label}</p></button>`;
 
   const batFirst = d.toss.winnerId
@@ -326,18 +330,18 @@ function step2() {
     <div class="card p-5">
       <p class="label">Who won the toss?</p>
       <div class="flex gap-3">${opt(d.teamA)}${opt(d.teamB)}</div>
-      <button data-act="flip" class="mt-3 w-full btn-ghost text-xs">🪙 Flip a coin for me</button>
+      <button data-act="flip" class="mt-3 w-full btn-ghost text-xs">${ICON.coin} Flip a coin for me</button>
 
       <p class="label mt-6">And they chose to…</p>
-      <div class="flex gap-3">${dec('bat', 'Bat', '🏏')}${dec('bowl', 'Bowl', '🎯')}</div>
+      <div class="flex gap-3">${dec('bat', 'Bat', ICON.ball)}${dec('bowl', 'Bowl', ICON.target)}</div>
 
-      ${batFirst ? `<div class="mt-5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-4 py-3 text-center animate-pop">
-        <p class="text-sm font-bold text-emerald-300">${esc(teamName(batFirst))} bat first</p>
-        <p class="text-[11px] text-slate-400 mt-0.5">${d.overs} overs · ${d.playersPerSide} a side</p></div>` : ''}
+      ${batFirst ? `<div class="mt-5 rounded-xl bg-action/10 border border-action px-4 py-3 text-center animate-pop">
+        <p class="text-sm font-bold text-fg">${esc(teamName(batFirst))} bat first</p>
+        <p class="text-[11px] text-muted mt-0.5">${d.overs} overs, ${d.playersPerSide} a side</p></div>` : ''}
     </div>
     <div class="grid grid-cols-2 gap-3 mt-5">
-      <button data-act="prev" class="btn-ghost !py-3.5">← Back</button>
-      <button data-act="next" class="btn-primary !py-3.5">Pick the XI →</button>
+      <button data-act="prev" class="btn-ghost !py-3.5">Back</button>
+      <button data-act="next" class="btn-primary !py-3.5">Pick the XI</button>
     </div>`;
 }
 
@@ -349,24 +353,24 @@ function step3() {
     return `<div class="card p-4">
       <div class="flex items-center gap-2.5 mb-3">
         ${badge(tid, 'sm')}
-        <p class="flex-1 text-sm font-bold text-white truncate">${esc(teamName(tid))}</p>
-        <span class="num text-xs font-bold ${short ? 'text-rose-400' : picked.length === d.playersPerSide ? 'text-emerald-400' : 'text-amber-400'}">${picked.length}
-          <span class="font-medium text-slate-600">player${picked.length === 1 ? '' : 's'}</span></span>
+        <p class="flex-1 text-sm font-bold text-fg truncate">${esc(teamName(tid))}</p>
+        <span class="num text-xs font-bold ${short ? 'text-wicket' : 'text-fg'}">${picked.length}
+          <span class="font-medium text-faint">player${picked.length === 1 ? '' : 's'}</span></span>
       </div>
       ${squad.length ? `<div class="grid gap-1.5 max-h-72 overflow-y-auto no-scrollbar">
         ${squad.map(p => {
           const i = picked.indexOf(p.id);
           const on = i >= 0;
           return `<button data-xi="${tid}:${p.id}" class="flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition active:scale-[.98] ${
-            on ? 'bg-emerald-500/12 border-emerald-500/35' : 'bg-white/[.03] border-white/8'}">
-            <span class="w-5 text-center text-[10px] font-bold num ${on ? 'text-emerald-400' : 'text-slate-600'}">${on ? i + 1 : '·'}</span>
-            <span class="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-white/8 text-[10px] font-bold text-slate-300">${esc(initials(p.name))}</span>
-            <span class="flex-1 min-w-0 text-xs font-semibold truncate ${on ? 'text-white' : 'text-slate-400'}">${esc(p.name)}
-              ${p.role === 'Wicket-keeper' ? '<span class="ml-1 text-[9px] text-amber-300">WK</span>' : ''}</span>
+            on ? 'bg-action/10 border-action' : 'bg-plate border-rule'}">
+            <span class="w-5 text-center text-[10px] font-bold num ${on ? 'text-fg' : 'text-faint'}">${on ? i + 1 : '·'}</span>
+            <span class="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-plate text-[10px] font-bold text-fg">${esc(initials(p.name))}</span>
+            <span class="flex-1 min-w-0 text-xs font-semibold truncate ${on ? 'text-fg' : 'text-muted'}">${esc(p.name)}
+              ${p.role === 'Wicket-keeper' ? '<span class="ml-1 text-[9px] text-boundary">WK</span>' : ''}</span>
           </button>`;
         }).join('')}</div>
         <button data-autoxi="${tid}" class="mt-2.5 w-full btn-chip">Pick all ${squad.length}</button>`
-        : `<p class="text-xs text-amber-400 py-3">No players in this squad. <a href="#/team/${tid}" class="underline">Add some</a> first.</p>`}
+        : `<p class="text-xs text-boundary py-3">No players in this squad. <a href="#/team/${tid}" class="underline">Add some</a> first.</p>`}
     </div>`;
   };
 
@@ -374,16 +378,16 @@ function step3() {
   const ready = nA >= 2 && nB >= 2;
   const uneven = ready && nA !== nB;
   return `
-    <p class="text-xs text-slate-500 mb-3 leading-relaxed">Tap players in batting order. At least 2 a side;
+    <p class="text-xs text-muted mb-3 leading-relaxed">Tap players in batting order. At least 2 a side;
     the numbers become the order new batters come in.</p>
-    ${uneven ? `<div class="rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-2.5 mb-3">
-      <p class="text-[11px] text-amber-200 leading-snug"><b>${nA} v ${nB}</b> — the sides are uneven, which is fine.
+    ${uneven ? `<div class="rounded-lg bg-plate border border-rule px-3 py-2.5 mb-3">
+      <p class="text-[11px] text-muted leading-snug"><b class="text-fg">${nA} v ${nB}</b>. Uneven sides are normal.
       Each team is all out one short of its own size, so ${esc(teamName(nA < nB ? d.teamA : d.teamB))} is all out at
       ${Math.min(nA, nB) - 1} wicket${Math.min(nA, nB) - 1 === 1 ? '' : 's'}.</p></div>` : ''}
     <div class="grid gap-4">${panel(d.teamA)}${panel(d.teamB)}</div>
     <div class="grid grid-cols-2 gap-3 mt-5">
-      <button data-act="prev" class="btn-ghost !py-3.5">← Back</button>
-      <button data-act="start" class="btn-primary !py-3.5" ${ready ? '' : 'disabled'}>Start scoring 🏏</button>
+      <button data-act="prev" class="btn-ghost !py-3.5">Back</button>
+      <button data-act="start" class="btn-primary !py-3.5" ${ready ? '' : 'disabled'}>Start scoring ${ICON.ball}</button>
     </div>`;
 }
 

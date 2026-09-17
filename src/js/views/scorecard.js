@@ -30,7 +30,7 @@ export default {
 
   render(ctx) {
     const m = store.match(ctx.id);
-    if (!m) return empty('❓', 'Scorecard not found', 'This match may have been deleted.', `<a href="#/matches" class="btn-ghost">All matches</a>`);
+    if (!m) return empty(ICON.question, 'Scorecard not found', 'This match may have been deleted.', `<a href="#/matches" class="btn-ghost">All matches</a>`);
 
     const states = statesOf(m);
     if (tab >= states.length) tab = 0;
@@ -68,21 +68,21 @@ function tieBreakCard(m) {
 
   const soRows = so.map(x => {
     const sts = statesOf(x);
-    const line = sts.map(st => `${teamShort(st.battingTeamId)} ${st.runs}/${st.wickets}`).join('  ·  ');
+    const line = sts.map(st => `${teamShort(st.battingTeamId)} ${st.runs}/${st.wickets}`).join(', ');
     const done = x.status === 'completed';
     return `<a href="#/${done ? 'scorecard' : 'score'}/${x.id}"
-      class="flex items-center gap-2.5 rounded-lg bg-white/[.05] px-3 py-2 mt-2 hover:bg-white/10 transition">
-      <span class="text-[10px] font-bold uppercase tracking-wider ${done ? 'text-slate-500' : 'text-rose-300'}">${esc(x.stage)}</span>
-      <span class="flex-1 num text-[12px] font-semibold text-white truncate">${esc(line || 'not started')}</span>
-      <span class="text-slate-600">${done ? '›' : 'resume ›'}</span></a>`;
+      class="flex items-center gap-2.5 rounded-lg bg-plate px-3 py-2 mt-2 hover:bg-fill transition">
+      <span class="text-[10px] font-semibold ${done ? 'text-muted' : 'text-wicket'}">${esc(x.stage)}</span>
+      <span class="flex-1 num text-[12px] font-semibold text-fg truncate">${esc(line || 'not started')}</span>
+      <span class="text-faint">${done ? '›' : 'resume ›'}</span></a>`;
   }).join('');
 
   return `<div class="card p-4 mt-4">
     <div class="flex items-center gap-3">
-      <span class="h-10 w-10 shrink-0 rounded-xl bg-amber-500/15 border border-amber-500/25 grid place-items-center text-lg">🤝</span>
+      <span class="h-10 w-10 shrink-0 rounded-xl bg-boundary/15 border border-boundary/25 grid place-items-center text-lg">${ICON.equals}</span>
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-bold text-white">${decided ? 'Tie settled' : 'Scores level — what next?'}</p>
-        <p class="text-[11px] text-slate-500">${decided
+        <p class="text-sm font-bold text-fg">${decided ? 'Tie settled' : 'Scores level — what next?'}</p>
+        <p class="text-[11px] text-muted">${decided
           ? `${esc(teamName(m.tieBreak.winnerId))} went through on the ${esc(m.tieBreak.method)}`
           : 'A tie is a tie for league points. A knockout still needs someone to go through.'}</p>
       </div>
@@ -95,20 +95,20 @@ function tieBreakCard(m) {
 async function tieBreakSheet(m, ctx) {
   if (!m) return;
   const opt = (act, icon, title, sub) => `
-    <button data-tbopt="${act}" class="w-full flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3.5 py-3 text-left hover:bg-white/10 active:scale-[.99] transition">
+    <button data-tbopt="${act}" class="w-full flex items-center gap-3 rounded-xl bg-plate border border-rule px-3.5 py-3 text-left hover:bg-fill active:scale-[.99] transition">
       <span class="text-lg w-6 text-center">${icon}</span>
-      <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-white">${esc(title)}</span>
-      <span class="block text-[11px] text-slate-500 leading-snug">${esc(sub)}</span></span>
-      <span class="text-slate-600">›</span></button>`;
+      <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-fg">${esc(title)}</span>
+      <span class="block text-[11px] text-muted leading-snug">${esc(sub)}</span></span>
+      <span class="text-faint">›</span></button>`;
 
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white">The scores are level</h3>
-    <p class="text-xs text-slate-500 mt-1 leading-relaxed">In a league this stays a tie and both sides take a point.
+    <h3 class="text-lg font-bold text-fg">The scores are level</h3>
+    <p class="text-xs text-muted mt-1 leading-relaxed">In a league this stays a tie and both sides take a point.
       In a knockout somebody has to go through — pick how it was settled.</p>
     <div class="grid gap-2 mt-5">
-      ${opt('super', '🏏', 'Play a Super Over', 'One over each, two wickets, scored ball by ball')}
-      ${opt('record', '✍️', 'Just record the winner', 'Bowl-out, boundary count or a coin toss')}
-      ${m.tieBreak?.winnerId ? opt('clear', '↩️', 'Leave it as a tie', 'Removes whatever was recorded') : ''}
+      ${opt('super', ICON.ball, 'Play a Super Over', 'One over each, two wickets, scored ball by ball')}
+      ${opt('record', ICON.pen, 'Just record the winner', 'Bowl-out, boundary count or a coin toss')}
+      ${m.tieBreak?.winnerId ? opt('clear', ICON.undo, 'Leave it as a tie', 'Removes whatever was recorded') : ''}
     </div>
     <button class="btn-ghost w-full mt-4" data-close="__dismiss">Cancel</button>`, { grab: false });
 
@@ -136,19 +136,19 @@ function soPanesHtml(m) {
       <div class="mt-4">
         <div class="flex items-center gap-2 mb-2">
           ${badge(teamId, 'sm')}
-          <p class="flex-1 text-sm font-bold text-white truncate">${esc(teamName(teamId))}</p>
-          <span class="num text-[11px] font-bold ${chosen.length < 2 ? 'text-rose-400' : 'text-emerald-400'}">${chosen.length}/3</span>
+          <p class="flex-1 text-sm font-bold text-fg truncate">${esc(teamName(teamId))}</p>
+          <span class="num text-[11px] font-bold ${chosen.length < 2 ? 'text-wicket' : 'text-fg'}">${chosen.length}/3</span>
         </div>
         <div class="grid gap-1.5 max-h-40 overflow-y-auto no-scrollbar">
           ${(m.xi[teamId] || []).map(id => {
             const on = chosen.includes(id);
             const order = chosen.indexOf(id) + 1;
             return `<button data-sopick="${teamId}:${id}" class="flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition active:scale-[.98] ${
-              on ? 'bg-emerald-500/12 border-emerald-500/35' : 'bg-white/[.03] border-white/8'}">
-              <span class="w-4 text-center text-[10px] font-bold num ${on ? 'text-emerald-400' : 'text-slate-600'}">${on ? order : '·'}</span>
-              <span class="h-6 w-6 shrink-0 grid place-items-center rounded-full bg-white/8 text-[9px] font-bold text-slate-300">${esc(initials(nameOf(id)))}</span>
-              <span class="flex-1 min-w-0 text-xs font-semibold truncate ${on ? 'text-white' : 'text-slate-400'}">${esc(nameOf(id))}</span>
-              <span class="text-xs ${on ? 'text-emerald-400' : 'text-transparent'}">✓</span></button>`;
+              on ? 'bg-action/10 border-action' : 'bg-plate border-rule'}">
+              <span class="w-4 text-center text-[10px] font-bold num ${on ? 'text-fg' : 'text-faint'}">${on ? order : '·'}</span>
+              <span class="h-6 w-6 shrink-0 grid place-items-center rounded-full bg-plate text-[9px] font-bold text-fg">${esc(initials(nameOf(id)))}</span>
+              <span class="flex-1 min-w-0 text-xs font-semibold truncate ${on ? 'text-fg' : 'text-muted'}">${esc(nameOf(id))}</span>
+              <span class="text-sm ${on ? 'text-fg' : 'text-transparent'}">${ICON.check}</span></button>`;
           }).join('')}
         </div>
       </div>`;
@@ -156,7 +156,7 @@ function soPanesHtml(m) {
   const short = m.teams.filter(t => (soPick[t] || []).length < 2);
   return m.teams.map(pane).join('') +
     (short.length
-      ? `<p class="mt-3 rounded-lg bg-rose-500/12 border border-rose-500/25 px-3 py-2 text-[11px] text-rose-200 leading-snug">
+      ? `<p class="mt-3 rounded-lg bg-wicket/10 border border-wicket/25 px-3 py-2 text-[11px] text-wicket leading-snug">
            ${esc(short.map(teamName).join(' and '))} ${short.length > 1 ? 'need' : 'needs'} at least two players.</p>`
       : '');
 }
@@ -180,9 +180,9 @@ async function startSuperOver(m, ctx) {
 
   const chased = m.innings[1]?.battingTeamId || m.teams[1];
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white">Super Over</h3>
-    <p class="text-xs text-slate-500 mt-1 leading-relaxed">One over each and two wickets ends an innings.
-      <b class="text-slate-300">${esc(teamName(chased))}</b> bat first, having chased.
+    <h3 class="text-lg font-bold text-fg">Super Over</h3>
+    <p class="text-xs text-muted mt-1 leading-relaxed">One over each and two wickets ends an innings.
+      <b class="text-fg">${esc(teamName(chased))}</b> bat first, having chased.
       Up to three batters a side — the bowler is chosen when you start.</p>
     <div id="soPanes">${soPanesHtml(m)}</div>
     <div class="mt-5 grid grid-cols-2 gap-3">
@@ -204,20 +204,20 @@ async function startSuperOver(m, ctx) {
 async function recordWinnerSheet(m, ctx) {
   const METHODS = ['Bowl-out', 'Boundary count', 'Coin toss', 'Super Over'];
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white">Who went through?</h3>
+    <h3 class="text-lg font-bold text-fg">Who went through?</h3>
     <p class="label mt-5">Settled by</p>
     <div class="grid grid-cols-2 gap-2" id="tbMethod">
       ${METHODS.map((x, i) => `<button type="button" data-tbm="${esc(x)}"
         class="rounded-xl border px-3 py-2.5 text-xs font-bold transition ${(m.tieBreak?.method || METHODS[0]) === x
-          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-white/5 border-white/10 text-slate-400'}">${esc(x)}</button>`).join('')}
+          ? 'bg-action/15 border-action text-fg' : 'bg-plate border-rule text-muted'}">${esc(x)}</button>`).join('')}
     </div>
     <p class="label mt-5">Winner</p>
     <div class="grid gap-2">
       ${m.teams.map(tid => `<button data-tbwin="${tid}" class="flex items-center gap-3 rounded-xl border px-3 py-3 text-left transition active:scale-[.98] ${
-        m.tieBreak?.winnerId === tid ? 'bg-amber-500/15 border-amber-500/35' : 'bg-white/5 border-white/10 hover:bg-white/10'}">
+        m.tieBreak?.winnerId === tid ? 'bg-boundary/15 border-boundary/35' : 'bg-plate border-rule hover:bg-fill'}">
         ${badge(tid, 'sm')}
-        <span class="flex-1 text-sm font-semibold text-white truncate">${esc(teamName(tid))}</span>
-        ${m.tieBreak?.winnerId === tid ? '<span class="text-amber-300">✓</span>' : ''}</button>`).join('')}
+        <span class="flex-1 text-sm font-semibold text-fg truncate">${esc(teamName(tid))}</span>
+        ${m.tieBreak?.winnerId === tid ? `<span class="text-boundary">${ICON.check}</span>` : ''}</button>`).join('')}
     </div>
     <button class="btn-ghost w-full mt-5" data-close="__dismiss">Cancel</button>`, { grab: false });
 
@@ -232,8 +232,8 @@ document.addEventListener('click', e => {
   const meth = e.target.closest('#tbMethod [data-tbm]');
   if (meth) {
     meth.parentElement.querySelectorAll('[data-tbm]').forEach(b =>
-      b.className = b.className.replace('bg-emerald-500/15 border-emerald-500/40 text-emerald-300', 'bg-white/5 border-white/10 text-slate-400'));
-    meth.className = meth.className.replace('bg-white/5 border-white/10 text-slate-400', 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300');
+      b.className = b.className.replace('bg-action/15 border-action text-fg', 'bg-plate border-rule text-muted'));
+    meth.className = meth.className.replace('bg-plate border-rule text-muted', 'bg-action/15 border-action text-fg');
     window.__tbMethod = meth.dataset.tbm;
     return;
   }
@@ -279,17 +279,17 @@ document.addEventListener('click', e => {
  * team's name above its score and an underline on the one you are looking at.
  */
 function inningsTabs(states, active) {
-  return `<div class="mt-4 flex border-b border-white/10">
+  return `<div class="mt-4 flex border-b border-rule">
     ${states.map((st, i) => {
       const on = i === active;
       return `<button data-tab="${i}" class="flex-1 min-w-0 px-2 pb-2.5 pt-1 text-left border-b-2 -mb-px transition ${
-        on ? 'border-emerald-400' : 'border-transparent'}">
+        on ? 'border-action' : 'border-transparent'}">
         <span class="flex items-center gap-2">
           ${badge(st.battingTeamId, 'sm')}
           <span class="min-w-0">
-            <span class="block truncate text-[12px] font-bold ${on ? 'text-white' : 'text-slate-500'}">${esc(teamName(st.battingTeamId))}</span>
-            <span class="block num text-[13px] font-extrabold ${on ? 'text-white' : 'text-slate-500'}">${st.runs}/${st.wickets}
-              <span class="text-[10px] font-medium text-slate-500">(${st.oversText})</span></span>
+            <span class="block truncate text-[12px] font-bold ${on ? 'text-fg' : 'text-muted'}">${esc(teamName(st.battingTeamId))}</span>
+            <span class="block num text-[13px] font-extrabold ${on ? 'text-fg' : 'text-muted'}">${st.runs}/${st.wickets}
+              <span class="text-[10px] font-medium text-muted">(${st.oversText})</span></span>
           </span>
         </span></button>`;
     }).join('')}
@@ -304,17 +304,17 @@ function header(m, states, res) {
     const lost = decided && m.result?.winnerId && m.result.winnerId !== st.battingTeamId;
     return `<div class="flex items-center gap-3 ${lost ? 'opacity-55' : ''}">
       ${badge(st.battingTeamId, 'sm')}
-      <span class="flex-1 min-w-0 text-sm font-semibold ${lost ? 'text-slate-400' : 'text-white'} truncate">${esc(teamName(st.battingTeamId))}</span>
-      <span class="num text-lg font-extrabold ${lost ? 'text-slate-400' : 'text-white'}">${st.runs}/${st.wickets}</span>
-      <span class="num text-[11px] text-slate-500 w-11 text-right">${st.oversText}</span>
+      <span class="flex-1 min-w-0 text-sm font-semibold ${lost ? 'text-muted' : 'text-fg'} truncate">${esc(teamName(st.battingTeamId))}</span>
+      <span class="num text-lg font-extrabold ${lost ? 'text-muted' : 'text-fg'}">${st.runs}/${st.wickets}</span>
+      <span class="num text-[11px] text-muted w-11 text-right">${st.oversText}</span>
     </div>`;
   };
 
-  return `<div class="card p-5 animate-slide-up">
-    ${t ? `<a href="#/tournament/${t.id}" class="text-[11px] font-bold text-amber-300">${esc(t.name)}${m.stage ? ' · ' + esc(m.stage) : ''}</a>` : ''}
+  return `<div class="card p-5">
+    ${t ? `<a href="#/tournament/${t.id}" class="text-[11px] font-bold text-boundary">${esc(t.name)}${m.stage ? ', ' + esc(m.stage) : ''}</a>` : ''}
     <div class="space-y-2.5 ${t ? 'mt-3' : ''}">${states.map(line).join('')}</div>
-    ${res ? `<p class="mt-4 pt-3 border-t border-white/[.07] text-sm font-bold ${m.result?.tie ? 'text-amber-300' : 'text-emerald-300'}">${esc(res)}</p>` : ''}
-    ${m.motm ? `<p class="mt-1.5 text-[11px] text-slate-400">🏅 ${esc(nameOf(m.motm))}</p>` : ''}
+    ${res ? `<p class="mt-4 pt-3 border-t border-rule text-sm font-bold ${m.result?.tie ? 'text-boundary' : 'text-fg'}">${esc(res)}</p>` : ''}
+    ${m.motm ? `<p class="mt-1.5 text-[11px] text-muted">${ICON.medal} ${esc(nameOf(m.motm))}</p>` : ''}
   </div>`;
 }
 
@@ -329,9 +329,9 @@ function matchDetails(m) {
   if (m.rules?.zones?.length) bits.push(`${m.rules.zones.length} fixed-run zone${m.rules.zones.length === 1 ? '' : 's'}`);
   if (!bits.length) return '';
   return `<div class="card p-4">
-    <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Match details</h3>
-    <p class="text-[11px] text-slate-500 leading-relaxed">${esc(bits.join('  ·  '))}</p>
-    <p class="mt-1 text-[11px] text-slate-600">${esc(fmtDate(m.createdAt))}</p>
+    <h3 class="text-[11px] font-semibold text-muted mb-2">Match details</h3>
+    <p class="text-[11px] text-muted leading-relaxed">${esc(bits.join(', '))}</p>
+    <p class="mt-1 text-[11px] text-faint">${esc(fmtDate(m.createdAt))}</p>
   </div>`;
 }
 
@@ -341,29 +341,29 @@ function battingTable(st) {
   return `<div class="card p-4">
     <div class="flex items-center gap-2 mb-3">
       ${badge(st.battingTeamId, 'sm')}
-      <h3 class="text-sm font-bold text-white">${esc(teamName(st.battingTeamId))} innings</h3>
-      <span class="ml-auto num text-sm font-extrabold text-white">${st.runs}/${st.wickets}</span>
+      <h3 class="text-sm font-bold text-fg">${esc(teamName(st.battingTeamId))} innings</h3>
+      <span class="ml-auto num text-sm font-extrabold text-fg">${st.runs}/${st.wickets}</span>
     </div>
     <div class="overflow-x-auto no-scrollbar -mx-1 px-1">
     <table class="tbl w-full min-w-[300px]">
       <thead><tr><th>Batter</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr></thead>
       <tbody>
-        ${rows.map(r => `<tr class="${r.out ? '' : 'text-emerald-200'}">
-          <td><span class="font-semibold ${r.out ? 'text-slate-200' : 'text-emerald-300'}">${esc(shortName(r.name))}</span>
-            <span class="block text-[10px] text-slate-500 leading-tight">${esc(r.how)}</span></td>
-          <td class="font-bold text-white">${r.r}</td><td>${r.b}</td><td>${r.f4}</td><td>${r.f6}</td>
-          <td class="text-slate-400">${fixed(r.sr, 0)}</td></tr>`).join('')}
-        <tr><td class="text-slate-400">Extras</td>
-          <td class="font-bold text-white">${st.extrasTotal}</td>
-          <td colspan="4" class="text-left pl-2 text-[10px] text-slate-500 !whitespace-normal">
+        ${rows.map(r => `<tr class="${r.out ? '' : 'text-fg'}">
+          <td><span class="font-semibold ${r.out ? 'text-fg' : 'text-fg'}">${esc(shortName(r.name))}</span>
+            <span class="block text-[10px] text-muted leading-tight">${esc(r.how)}</span></td>
+          <td class="font-bold text-fg">${r.r}</td><td>${r.b}</td><td>${r.f4}</td><td>${r.f6}</td>
+          <td class="text-muted">${fixed(r.sr, 0)}</td></tr>`).join('')}
+        <tr><td class="text-muted">Extras</td>
+          <td class="font-bold text-fg">${st.extrasTotal}</td>
+          <td colspan="4" class="text-left pl-2 text-[10px] text-muted !whitespace-normal">
             (b ${st.extras.bye}, lb ${st.extras.legbye}, w ${st.extras.wide}, nb ${st.extras.noball}${st.extras.penalty ? `, p ${st.extras.penalty}` : ''})</td></tr>
-        <tr class="bg-white/[.04]"><td class="font-bold text-white">Total</td>
-          <td class="font-extrabold text-white">${st.runs}</td>
-          <td colspan="4" class="text-left pl-2 text-[11px] text-slate-400 !whitespace-normal">
-            ${st.wickets} wkt${st.wickets === 1 ? '' : 's'}, ${st.oversText} ov · RR ${fixed(st.crr)}</td></tr>
+        <tr class="bg-plate"><td class="font-bold text-fg">Total</td>
+          <td class="font-extrabold text-fg">${st.runs}</td>
+          <td colspan="4" class="text-left pl-2 text-[11px] text-muted !whitespace-normal">
+            ${st.wickets} wkt${st.wickets === 1 ? '' : 's'}, ${st.oversText} ov, RR ${fixed(st.crr)}</td></tr>
       </tbody>
     </table></div>
-    ${dnb.length ? `<p class="mt-2.5 text-[11px] text-slate-500"><span class="text-slate-400 font-semibold">Did not bat:</span> ${dnb.map(id => esc(shortName(nameOf(id)))).join(', ')}</p>` : ''}
+    ${dnb.length ? `<p class="mt-2.5 text-[11px] text-muted"><span class="text-muted font-semibold">Did not bat:</span> ${dnb.map(id => esc(shortName(nameOf(id)))).join(', ')}</p>` : ''}
   </div>`;
 }
 
@@ -373,17 +373,17 @@ function bowlingTable(st) {
   return `<div class="card p-4">
     <div class="flex items-center gap-2 mb-3">
       ${badge(st.bowlingTeamId, 'sm')}
-      <h3 class="text-sm font-bold text-white">${esc(teamName(st.bowlingTeamId))} bowling</h3>
+      <h3 class="text-sm font-bold text-fg">${esc(teamName(st.bowlingTeamId))} bowling</h3>
     </div>
     <div class="overflow-x-auto no-scrollbar -mx-1 px-1">
     <table class="tbl w-full min-w-[270px]">
       <thead><tr><th>Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th></tr></thead>
       <tbody>${rows.map(r => `<tr>
-        <td class="font-semibold text-slate-200">${esc(shortName(r.name))}
-          ${r.wd || r.nb ? `<span class="block text-[9px] text-slate-600 leading-tight">${[r.wd ? r.wd + ' wd' : '', r.nb ? r.nb + ' nb' : ''].filter(Boolean).join(', ')}</span>` : ''}</td>
+        <td class="font-semibold text-fg">${esc(shortName(r.name))}
+          ${r.wd || r.nb ? `<span class="block text-[9px] text-faint leading-tight">${[r.wd ? r.wd + ' wd' : '', r.nb ? r.nb + ' nb' : ''].filter(Boolean).join(', ')}</span>` : ''}</td>
         <td>${r.o}</td><td>${r.m}</td><td>${r.r}</td>
-        <td class="font-bold ${r.w >= 3 ? 'text-emerald-300' : 'text-white'}">${r.w}</td>
-        <td class="text-slate-400">${fixed(r.econ)}</td></tr>`).join('')}
+        <td class="font-bold ${r.w >= 3 ? 'text-fg' : 'text-fg'}">${r.w}</td>
+        <td class="text-muted">${fixed(r.econ)}</td></tr>`).join('')}
       </tbody></table></div>
   </div>`;
 }
@@ -391,10 +391,10 @@ function bowlingTable(st) {
 function fowRow(st) {
   if (!st.fow.length) return '';
   return `<div class="card p-4">
-    <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2.5">Fall of wickets</h3>
+    <h3 class="text-[11px] font-semibold text-muted mb-2.5">Fall of wickets</h3>
     <div class="flex flex-wrap gap-x-3 gap-y-1.5 text-[11px]">
-      ${st.fow.map(f => `<span class="num text-slate-400">
-        <b class="text-white">${f.runs}-${f.w}</b> (${esc(shortName(nameOf(f.batter)))}, ${oversOf(f.balls)})</span>`).join('')}
+      ${st.fow.map(f => `<span class="num text-muted">
+        <b class="text-fg">${f.runs}-${f.w}</b> (${esc(shortName(nameOf(f.batter)))}, ${oversOf(f.balls)})</span>`).join('')}
     </div></div>`;
 }
 
@@ -404,17 +404,17 @@ function partnerships(st) {
   if (!list.length) return '';
   const max = Math.max(...list.map(p => p.runs), 1);
   return `<div class="card p-4">
-    <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">Partnerships</h3>
+    <h3 class="text-[11px] font-semibold text-muted mb-3">Partnerships</h3>
     <div class="space-y-2">
       ${list.map((p, i) => `<div>
         <div class="flex items-center gap-2 text-[11px] mb-1">
-          <span class="num text-slate-600 w-4">${i + 1}</span>
-          <span class="flex-1 truncate text-slate-400">${esc(shortName(nameOf(p.a)))} &amp; ${esc(shortName(nameOf(p.b)))}</span>
-          <span class="num font-bold text-white">${p.runs}</span>
-          <span class="num text-slate-600">(${p.balls})</span>
+          <span class="num text-faint w-4">${i + 1}</span>
+          <span class="flex-1 truncate text-muted">${esc(shortName(nameOf(p.a)))} &amp; ${esc(shortName(nameOf(p.b)))}</span>
+          <span class="num font-bold text-fg">${p.runs}</span>
+          <span class="num text-faint">(${p.balls})</span>
         </div>
-        <div class="h-1.5 rounded-full bg-white/[.06] overflow-hidden">
-          <div class="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-all duration-500" style="width:${(p.runs / max) * 100}%"></div>
+        <div class="h-1.5 rounded-full bg-plate overflow-hidden">
+          <div class="h-full rounded-full bg-action transition-all duration-500" style="width:${(p.runs / max) * 100}%"></div>
         </div></div>`).join('')}
     </div></div>`;
 }
@@ -425,15 +425,15 @@ function overByOver(st) {
   if (!overs.length) return '';
   let running = 0;
   return `<div class="card p-4">
-    <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">Over by over</h3>
+    <h3 class="text-[11px] font-semibold text-muted mb-3">Over by over</h3>
     <div class="space-y-2.5">
       ${overs.map(o => {
         running += o.runs;
         return `<div class="flex items-start gap-2">
-          <span class="num text-[11px] font-bold text-slate-500 w-4 pt-0.5">${o.n}</span>
+          <span class="num text-[11px] font-bold text-muted w-4 pt-0.5">${o.n}</span>
           <div class="flex flex-wrap gap-1 flex-1 min-w-0">${o.balls.map(c => ballChip(c, 0, true)).join('')}</div>
-          <span class="num text-[11px] font-bold text-white w-6 text-right pt-0.5">${o.runs}</span>
-          <span class="num text-[10px] text-slate-600 w-8 text-right pt-0.5">${running}</span>
+          <span class="num text-[11px] font-bold text-fg w-6 text-right pt-0.5">${o.runs}</span>
+          <span class="num text-[10px] text-faint w-8 text-right pt-0.5">${running}</span>
         </div>`;
       }).join('')}
     </div></div>`;
@@ -446,18 +446,18 @@ function overByOver(st) {
 async function shareSheet(m) {
   if (!m) return;
   const v = await sheet(`
-    <h3 class="text-lg font-bold text-white mb-4">Share this scorecard</h3>
+    <h3 class="text-lg font-bold text-fg mb-4">Share this scorecard</h3>
     <div class="grid gap-2">
-      <button data-share="image" class="w-full flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3.5 py-3 text-left hover:bg-white/10 active:scale-[.99] transition">
-        <span class="text-lg w-6 text-center">🖼️</span>
-        <span class="flex-1"><span class="block text-sm font-semibold text-white">As a picture</span>
-        <span class="block text-[11px] text-slate-500">Best for WhatsApp — it gets forwarded</span></span>
-        <span class="text-slate-600">›</span></button>
-      <button data-share="text" class="w-full flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3.5 py-3 text-left hover:bg-white/10 active:scale-[.99] transition">
-        <span class="text-lg w-6 text-center">📋</span>
-        <span class="flex-1"><span class="block text-sm font-semibold text-white">As text</span>
-        <span class="block text-[11px] text-slate-500">Full card, batting and bowling</span></span>
-        <span class="text-slate-600">›</span></button>
+      <button data-share="image" class="w-full flex items-center gap-3 rounded-xl bg-plate border border-rule px-3.5 py-3 text-left hover:bg-fill active:scale-[.99] transition">
+        <span class="text-lg w-6 text-center">${ICON.image}</span>
+        <span class="flex-1"><span class="block text-sm font-semibold text-fg">As a picture</span>
+        <span class="block text-[11px] text-muted">Best for WhatsApp — it gets forwarded</span></span>
+        <span class="text-faint">›</span></button>
+      <button data-share="text" class="w-full flex items-center gap-3 rounded-xl bg-plate border border-rule px-3.5 py-3 text-left hover:bg-fill active:scale-[.99] transition">
+        <span class="text-lg w-6 text-center">${ICON.card}</span>
+        <span class="flex-1"><span class="block text-sm font-semibold text-fg">As text</span>
+        <span class="block text-[11px] text-muted">Full card, batting and bowling</span></span>
+        <span class="text-faint">›</span></button>
     </div>
     <button class="btn-ghost w-full mt-4" data-close="__dismiss">Cancel</button>`, { grab: false });
 
@@ -516,7 +516,7 @@ export function fullText(m) {
   const L = [];
   L.push(`${teamName(m.teams[0])} v ${teamName(m.teams[1])}`);
   if (m.venue) L.push(m.venue);
-  L.push(`${fmtDate(m.createdAt)} · ${m.overs} overs a side`);
+  L.push(`${fmtDate(m.createdAt)}, ${m.overs} overs a side`);
   L.push('');
   for (const st of states) {
     L.push(`${teamName(st.battingTeamId)} — ${st.runs}/${st.wickets} (${st.oversText})`);

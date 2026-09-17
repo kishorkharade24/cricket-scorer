@@ -14,12 +14,16 @@ const W = 1080;
 const PAD = 64;
 
 const FONT = (weight, size) =>
-  `${weight} ${size}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+  `${weight} ${size}px Barlow, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
 
+const DISPLAY = (weight, size) =>
+  `${weight} ${size}px "Barlow Condensed", Barlow, ui-sans-serif, system-ui, Arial, sans-serif`;
+
+/* The scoreboard, drawn. Same six roles as the app. */
 const C = {
-  bg: '#080c16', card: '#111a2c', line: 'rgba(255,255,255,.09)',
-  white: '#ffffff', dim: '#94a3b8', faint: '#64748b',
-  green: '#34d399', amber: '#fbbf24', rose: '#fb7185', sky: '#38bdf8'
+  bg: '#0f1a15', card: '#17251e', line: 'rgba(214,204,182,.16)',
+  white: '#f1ead9', dim: '#b5b09e', faint: '#7a776b',
+  green: '#f1ead9', amber: '#dba946', rose: '#ef6a58', sky: '#dba946'
 };
 
 /* ---------- small drawing helpers ---------- */
@@ -89,39 +93,39 @@ export async function scorecardImage(match) {
 
     /* header */
     const t = match.tournamentId ? store.tournament(match.tournamentId) : null;
-    const kicker = [t?.name, match.stage, match.venue].filter(Boolean).join('  ·  ');
+    const kicker = [t?.name, match.stage, match.venue].filter(Boolean).join(', ');
     if (kicker) {
-      T(kicker.toUpperCase(), PAD, y, { font: FONT(700, 26), colour: C.amber, max: W - PAD * 2 });
+      T(kicker, PAD, y, { font: FONT(600, 27), colour: C.amber, max: W - PAD * 2 });
       y += 44;
     }
     T(`${teamShort(match.teams[0])} v ${teamShort(match.teams[1])}`, PAD, y + 16,
-      { font: FONT(800, 62), colour: C.white, max: W - PAD * 2 });
+      { font: DISPLAY(800, 68), colour: C.white, max: W - PAD * 2 });
     const when = new Date(match.createdAt).toLocaleDateString(undefined,
       { day: '2-digit', month: 'short', year: 'numeric' });
-    T(`${when}  ·  ${match.overs} overs a side`, PAD, y + 62, { font: FONT(500, 28), colour: C.faint });
+    T(`${when}, ${match.overs} overs a side`, PAD, y + 62, { font: FONT(500, 28), colour: C.faint });
     y += 118;
 
     /* the two innings */
     const res = match.result;
     for (const st of states) {
       const won = res?.winnerId === st.battingTeamId;
-      box(PAD, y, W - PAD * 2, 112, 24, won ? 'rgba(52,211,153,.10)' : C.card,
-          won ? 'rgba(52,211,153,.35)' : C.line);
-      box(PAD + 22, y + 24, 64, 64, 16, 'rgba(255,255,255,.07)');
+      box(PAD, y, W - PAD * 2, 112, 14, won ? 'rgba(241,234,217,.07)' : C.card,
+          won ? 'rgba(241,234,217,.30)' : C.line);
+      box(PAD + 22, y + 24, 64, 64, 12, 'rgba(241,234,217,.08)');
       T(teamShort(st.battingTeamId), PAD + 54, y + 66,
-        { font: FONT(800, 22), colour: won ? C.green : C.dim, align: 'center', max: 60 });
+        { font: DISPLAY(800, 24), colour: won ? C.white : C.dim, align: 'center', max: 60 });
       T(teamName(st.battingTeamId), PAD + 108, y + 68,
         { font: FONT(700, 36), colour: won ? C.white : C.dim, max: 430 });
       T(`${st.runs}/${st.wickets}`, W - PAD - 150, y + 70,
-        { font: FONT(800, 46), colour: C.white, align: 'right' });
-      T(`(${st.oversText})`, W - PAD - 26, y + 70, { font: FONT(600, 30), colour: C.faint, align: 'right' });
+        { font: DISPLAY(800, 52), colour: C.white, align: 'right' });
+      T(`(${st.oversText})`, W - PAD - 26, y + 70, { font: DISPLAY(700, 32), colour: C.faint, align: 'right' });
       y += 132;
     }
 
     /* result */
     const line = resultText(match, states, teamName) ||
       (match.status === 'live' ? 'In progress' : 'No result');
-    box(PAD, y, W - PAD * 2, 92, 20, res?.tie ? 'rgba(251,191,36,.12)' : 'rgba(52,211,153,.12)');
+    box(PAD, y, W - PAD * 2, 92, 14, res?.tie ? 'rgba(219,169,70,.14)' : 'rgba(241,234,217,.08)');
     T(line, W / 2, y + 58,
       { font: FONT(700, 34), colour: res?.tie ? C.amber : C.green, align: 'center', max: W - PAD * 2 - 48 });
     y += 118;
@@ -132,7 +136,7 @@ export async function scorecardImage(match) {
     const MAIN_X = W - PAD - 8;
 
     for (const { st, bats, bowls } of perInnings) {
-      T(`${teamShort(st.battingTeamId)} — BATTING`, PAD, y + 28, { font: FONT(700, 24), colour: C.faint });
+      T(`${teamShort(st.battingTeamId)} batting`, PAD, y + 28, { font: FONT(600, 25), colour: C.faint });
       y += 50;
       for (const b of bats) {
         T(shortName(b.name), NAME_X, y + 30, { font: FONT(600, 30), colour: C.white, max: NAME_MAX });
@@ -143,11 +147,11 @@ export async function scorecardImage(match) {
       }
       if (bowls.length) {
         y += 14;
-        T(`${teamShort(st.bowlingTeamId)} — BOWLING`, PAD, y + 24, { font: FONT(700, 24), colour: C.faint });
+        T(`${teamShort(st.bowlingTeamId)} bowling`, PAD, y + 24, { font: FONT(600, 25), colour: C.faint });
         y += 46;
         for (const b of bowls) {
           T(shortName(b.name), NAME_X, y + 30, { font: FONT(600, 30), colour: C.dim, max: NAME_MAX });
-          T(`${b.o} ov · ${fixed(b.econ)} econ`, DETAIL_X, y + 30,
+          T(`${b.o} ov, ${fixed(b.econ)} econ`, DETAIL_X, y + 30,
             { font: FONT(500, 24), colour: C.faint, align: 'right' });
           T(`${b.w}/${b.r}`, MAIN_X, y + 30,
             { font: FONT(700, 30), colour: b.w >= 2 ? C.green : C.dim, align: 'right' });
@@ -159,8 +163,8 @@ export async function scorecardImage(match) {
 
     /* player of the match */
     if (match.motm) {
-      box(PAD, y, W - PAD * 2, 64, 16, 'rgba(251,191,36,.10)');
-      T(`Player of the match — ${nameOf(match.motm)}`, W / 2, y + 42,
+      box(PAD, y, W - PAD * 2, 64, 12, 'rgba(219,169,70,.12)');
+      T(`Player of the match: ${nameOf(match.motm)}`, W / 2, y + 42,
         { font: FONT(700, 28), colour: C.amber, align: 'center', max: W - PAD * 2 - 40 });
       y += 80;
     }
@@ -181,11 +185,6 @@ export async function scorecardImage(match) {
 
   ctx.fillStyle = C.bg;
   ctx.fillRect(0, 0, W, H);
-  const glow = ctx.createRadialGradient(180, 60, 0, 180, 60, 900);
-  glow.addColorStop(0, 'rgba(16,185,129,.20)');
-  glow.addColorStop(1, 'rgba(16,185,129,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
-
   paint(ctx, true);
 
   /* footer, pinned to the bottom whatever the content did */
