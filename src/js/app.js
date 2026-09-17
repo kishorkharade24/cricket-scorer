@@ -37,6 +37,7 @@ const ROUTES = [
 
 let current = null;
 let cleanup = null;
+let lastPath = null;
 
 /* ---------- routing ---------- */
 
@@ -84,14 +85,20 @@ export function render() {
   } catch (err) {
     console.error('[render]', err);
     html = `<div class="card p-6 text-center">
-        <p class="text-rose-300 font-semibold">Something went wrong drawing this screen.</p>
-        <p class="mt-1 text-xs text-slate-500">${err.message}</p>
+        <p class="text-wicket font-semibold">Something went wrong drawing this screen.</p>
+        <p class="mt-1 text-xs text-muted">${err.message}</p>
         <a href="#/" class="btn-ghost mt-4">Back to home</a></div>`;
   }
-  root.innerHTML = html;
+  // Scoring re-renders the same screen on every tap. Throwing the scorer back
+  // to the top each time made the pad unusable once the page was taller than
+  // the viewport, so only a change of route resets the scroll position.
   const scroller = $('#scroller');
-  if (scroller) scroller.scrollTop = 0;
-  root.scrollTop = 0;
+  const samePage = route.path === lastPath;
+  const keepScroll = samePage && scroller ? scroller.scrollTop : 0;
+  lastPath = route.path;
+
+  root.innerHTML = html;
+  if (scroller) scroller.scrollTop = keepScroll;
 
   // shell chrome
   $('#pageTitle').textContent = val(current.title, ctx) || 'Cricket Scorer';
